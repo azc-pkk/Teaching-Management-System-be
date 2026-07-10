@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.idea/
+.vscode/
+src/generated/prisma/
+
+
+/src/generated/prisma
