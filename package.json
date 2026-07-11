@@ -1,0 +1,37 @@
+{
+  "name": "teaching-management-system-be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:setup": "prisma migrate deploy && prisma generate && prisma db seed"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/azc-pkk/Teaching-Management-System-be.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/azc-pkk/Teaching-Management-System-be/issues"
+  },
+  "homepage": "https://github.com/azc-pkk/Teaching-Management-System-be#readme",
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "prisma": "^7.8.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "dotenv": "^17.4.2"
+  }
+}
