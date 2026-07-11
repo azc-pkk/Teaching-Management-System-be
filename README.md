@@ -1,6 +1,6 @@
 # 教学过程管理系统后端
 
-本仓库是教学过程管理系统的独立后端仓库，使用 `NestJS + TypeScript + PostgreSQL + Prisma`。前端代码位于 [Teaching-Management-System-fe](https://github.com/azc-pkk/Teaching-Management-System-fe)，两个仓库独立开发、独立提交、通过 Apifox 定义的 REST API 协作。
+本仓库是教学过程管理系统的独立后端仓库，使用 `NestJS + TypeScript + Prisma + MySQL`。前端代码位于 [Teaching-Management-System-fe](https://github.com/azc-pkk/Teaching-Management-System-fe)，两个仓库独立开发、独立提交，通过 Apifox 定义的 REST API 协作。
 
 ## 开发前必读
 
@@ -10,7 +10,7 @@
 
 ## 本地启动
 
-环境要求：Node.js 20 或更高版本、pnpm 10 或更高版本、Docker Desktop。
+环境要求：Node.js 20 或更高版本，pnpm 10 或更高版本，Docker Desktop。
 
 ```bash
 pnpm install
@@ -22,6 +22,24 @@ pnpm start:dev
 ```
 
 服务默认运行在 `http://localhost:3001`，健康检查地址为 `GET /api/health`。
+
+## 数据库说明
+
+本地数据库默认使用 Docker 中的 MySQL 8.4。
+
+```env
+DATABASE_URL="mysql://teaching_user:teaching_password@localhost:3306/teaching_management"
+```
+
+已提供第一版迁移 `init_mysql`，当前只包含 `users` 表，用来跑通 Prisma + MySQL 基础链路。后续业务表按模块逐步补充，每个模块单独提交迁移。
+
+常用命令：
+
+```bash
+pnpm prisma:generate
+pnpm prisma:migrate
+pnpm prisma:studio
+```
 
 ## 目录说明
 
@@ -47,7 +65,7 @@ test/                           接口集成测试
 
 ## Apifox 协作
 
-1. 新接口先在 Apifox 定义路径、参数、响应、错误码与 Mock。
+1. 新接口先在 Apifox 定义路径、参数、响应、错误码和 Mock。
 2. 后端按文档实现，并保持统一的 `ApiResponse<T>` 返回格式。
 3. 接口完成后在 Apifox 验证成功、参数错误、未登录和越权场景。
 4. 字段或状态码变化时，先更新 Apifox，再通知前端调整。
@@ -71,5 +89,5 @@ pnpm build
 
 ## 当前状态
 
-- 已搭建 NestJS、模块目录、统一类型和本地 PostgreSQL 基础框架。
+- 已搭建 NestJS、模块目录、统一类型、Prisma 和 MySQL 基础框架。
 - 下一步由后端工程师完善 Prisma schema、登录鉴权和基础数据 CRUD。

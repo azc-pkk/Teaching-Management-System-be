@@ -8,23 +8,15 @@ datasource db {
   provider = "mysql"
 }
 
-/**
- * =========================
- * 枚举类型
- * =========================
- */
-
 enum UserRole {
   ADMIN
   ACADEMIC
+  DEPARTMENT_ADMIN
+  RESEARCH_DIRECTOR
   TEACHER
   STUDENT
+  TEXTBOOK_ADMIN
   LEADER
-}
-
-enum UserStatus {
-  ENABLED
-  DISABLED
 }
 
 enum ClassroomStatus {
@@ -33,527 +25,356 @@ enum ClassroomStatus {
   MAINTENANCE
 }
 
-enum ApprovalStatus {
+enum StudentStatus {
+  ENROLLED
+  SUSPENDED
+  GRADUATED
+  WITHDRAWN
+}
+
+enum WorkflowStatus {
+  DRAFT
   PENDING
   APPROVED
   REJECTED
   CANCELLED
+  COMPLETED
 }
 
-enum ExamType {
-  FINAL
-  MAKEUP
-  RETAKE
+enum TextbookOrderStatus {
+  PENDING
+  APPROVED
+  ORDERED
+  RECEIVED
+  CANCELLED
 }
 
-enum AttendanceStatus {
-  PRESENT
-  LATE
-  ABSENT
-  LEAVE
-}
-
-enum GraduationStatus {
+enum GraduationResult {
   PENDING
   PASSED
   FAILED
+  REVIEW_REQUIRED
 }
 
-/**
- * =========================
- * 用户
- * =========================
- */
+enum TeachingLogStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
+  RETURN
+  CANCEL
+}
 
 model User {
-  id           Int        @id @default(autoincrement())
-  username     String     @unique @db.VarChar(50)
-  passwordHash String     @map("password_hash") @db.VarChar(255)
-  realName     String     @map("real_name") @db.VarChar(50)
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  name         String   @map("real_name") @db.VarChar(50)
   role         UserRole
-  status       UserStatus @default(ENABLED)
-  phone        String?    @db.VarChar(20)
-  email        String?    @db.VarChar(100)
+  teacherId    Int?     @unique @map("teacher_id")
+  studentId    Int?     @unique @map("student_id")
+  enabled      Boolean  @default(true)
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  teacher               Teacher?
-  student               Student?
-  classroomApplications ClassroomApplication[]
+  teacher           Teacher?           @relation("UserTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  student           Student?           @relation("UserStudent", fields: [studentId], references: [id], onDelete: SetNull)
+  classroomRequests ClassroomRequest[] @relation("RequestApplicant")
+  approvalRecords   ApprovalRecord[]   @relation("ApprovalOperator")
+  operationLogs     OperationLog[]
 
   @@map("sys_user")
 }
 
-/**
- * =========================
- * 教研室
- * =========================
- */
+model Department {
+  id        Int     @id @default(autoincrement())
+  name      String  @db.VarChar(100)
+  code      String  @unique @db.VarChar(30)
+  parentId  Int?    @map("parent_id")
+  type      String? @db.VarChar(30)
+  managerId Int?    @map("manager_id")
 
-model TeachingOffice {
-  id           Int     @id @default(autoincrement())
-  officeCode   String  @unique @map("office_code") @db.VarChar(30)
-  officeName   String  @map("office_name") @db.VarChar(100)
-  directorName String? @map("director_name") @db.VarChar(50)
-  department   String? @db.VarChar(100)
+  parent      Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Department[] @relation("DepartmentHierarchy")
+  manager     Teacher?     @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  majors      Major[]
+  classGroups ClassGroup[]
+  teachers    Teacher[]    @relation("TeacherDepartment")
+  courses     Course[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  teachers Teacher[]
-  courses  Course[]
-
-  @@map("teaching_office")
+  @@index([parentId])
+  @@index([managerId])
+  @@map("department")
 }
-
-/**
- * =========================
- * 教师
- * =========================
- */
-
-model Teacher {
-  id          Int     @id @default(autoincrement())
-  teacherNo   String  @unique @map("teacher_no") @db.VarChar(30)
-  teacherName String  @map("teacher_name") @db.VarChar(50)
-  teacherType String? @map("teacher_type") @db.VarChar(30)
-  title       String? @db.VarChar(50)
-  phone       String? @db.VarChar(20)
-  email       String? @db.VarChar(100)
-
-  officeId Int? @map("office_id")
-  userId   Int? @unique @map("user_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  office TeachingOffice? @relation(fields: [officeId], references: [id])
-  user   User?           @relation(fields: [userId], references: [id])
-
-  coursesLed       Course[]           @relation("CourseLeader")
-  schedules        TeachingSchedule[]
-  adjustmentForms  CourseAdjustment[]
-  teachingLogs     TeachingLog[]
-  invigilatedExams Exam[]             @relation("ExamInvigilator")
-
-  @@map("teacher")
-}
-
-/**
- * =========================
- * 专业
- * =========================
- */
 
 model Major {
-  id             Int     @id @default(autoincrement())
-  majorCode      String  @unique @map("major_code") @db.VarChar(30)
-  majorName      String  @map("major_name") @db.VarChar(100)
-  departmentName String? @map("department_name") @db.VarChar(100)
-  degreeType     String? @map("degree_type") @db.VarChar(30)
-  durationYears  Int?    @map("duration_years")
+  id            Int    @id @default(autoincrement())
+  name          String @db.VarChar(100)
+  code          String @unique @db.VarChar(30)
+  departmentId  Int    @map("department_id")
+  durationYears Int    @map("duration_years")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  department  Department   @relation(fields: [departmentId], references: [id])
+  classGroups ClassGroup[]
 
-  classes StudentClass[]
-
+  @@index([departmentId])
   @@map("major")
 }
 
-/**
- * =========================
- * 班级
- * =========================
- */
+model ClassGroup {
+  id           Int    @id @default(autoincrement())
+  name         String @db.VarChar(100)
+  grade        Int
+  majorId      Int    @map("major_id")
+  departmentId Int    @map("department_id")
+  counselorId  Int?   @map("counselor_id")
+  studentCount Int    @default(0) @map("student_count")
 
-model StudentClass {
-  id            Int     @id @default(autoincrement())
-  classCode     String  @unique @map("class_code") @db.VarChar(30)
-  className     String  @map("class_name") @db.VarChar(100)
-  gradeYear     Int     @map("grade_year")
-  campus        String? @db.VarChar(100)
-  counselorName String? @map("counselor_name") @db.VarChar(50)
-  studentCount  Int     @default(0) @map("student_count")
+  major           Major            @relation(fields: [majorId], references: [id])
+  department      Department       @relation(fields: [departmentId], references: [id])
+  counselor       Teacher?         @relation("ClassCounselor", fields: [counselorId], references: [id], onDelete: SetNull)
+  students        Student[]
+  exams           Exam[]
+  scheduleChanges ScheduleChange[]
+  teachingLogs    TeachingLog[]
 
-  majorId Int @map("major_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  major     Major              @relation(fields: [majorId], references: [id])
-  students  Student[]
-  schedules TeachingSchedule[]
-  exams     Exam[]
-
-  @@map("student_class")
+  @@index([majorId])
+  @@index([departmentId])
+  @@index([counselorId])
+  @@map("class_group")
 }
 
-/**
- * =========================
- * 学生
- * =========================
- */
+model Teacher {
+  id           Int     @id @default(autoincrement())
+  employeeNo   String  @unique @map("teacher_no") @db.VarChar(30)
+  name         String  @map("teacher_name") @db.VarChar(50)
+  departmentId Int?    @map("department_id")
+  teacherType  String? @map("teacher_type") @db.VarChar(30)
+  title        String? @db.VarChar(50)
+  phone        String? @db.VarChar(20)
+
+  department         Department?      @relation("TeacherDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  user               User?            @relation("UserTeacher")
+  managedDepartments Department[]     @relation("DepartmentManager")
+  counseledClasses   ClassGroup[]     @relation("ClassCounselor")
+  directedCourses    Course[]         @relation("CourseDirector")
+  invigilatedExams   Exam[]           @relation("ExamInvigilator")
+  scheduleChanges    ScheduleChange[]
+  teachingLogs       TeachingLog[]
+
+  @@index([departmentId])
+  @@map("teacher")
+}
 
 model Student {
-  id            Int     @id @default(autoincrement())
-  studentNo     String  @unique @map("student_no") @db.VarChar(30)
-  studentName   String  @map("student_name") @db.VarChar(50)
-  gender        String? @db.VarChar(10)
-  phone         String? @db.VarChar(20)
-  email         String? @db.VarChar(100)
-  admissionYear Int?    @map("admission_year")
-  status        String  @default("ENROLLED") @db.VarChar(30)
+  id           Int           @id @default(autoincrement())
+  studentNo    String        @unique @map("student_no") @db.VarChar(30)
+  name         String        @db.VarChar(50)
+  classGroupId Int           @map("class_group_id")
+  grade        Int
+  status       StudentStatus @default(ENROLLED)
+  phone        String?       @db.VarChar(20)
 
-  classId Int  @map("class_id")
-  userId  Int? @unique @map("user_id")
+  classGroup        ClassGroup         @relation(fields: [classGroupId], references: [id])
+  user              User?              @relation("UserStudent")
+  graduationReviews GraduationReview[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  studentClass    StudentClass       @relation(fields: [classId], references: [id])
-  user            User?              @relation(fields: [userId], references: [id])
-  examRecords     ExamStudent[]
-  attendance      AttendanceRecord[]
-  graduationAudit GraduationAudit?
-
+  @@index([classGroupId])
   @@map("student")
 }
 
-/**
- * =========================
- * 课程
- * =========================
- */
-
 model Course {
-  id                Int     @id @default(autoincrement())
-  courseCode        String  @unique @map("course_code") @db.VarChar(30)
-  courseName        String  @map("course_name") @db.VarChar(100)
-  credit            Decimal @db.Decimal(4, 1)
-  totalHours        Int?    @map("total_hours")
-  courseType        String? @map("course_type") @db.VarChar(30)
-  assessmentMethod  String? @map("assessment_method") @db.VarChar(50)
-  participateMakeup Boolean @default(true) @map("participate_makeup")
+  id           Int     @id @default(autoincrement())
+  code         String  @unique @map("course_code") @db.VarChar(30)
+  name         String  @map("course_name") @db.VarChar(100)
+  credits      Decimal @map("credit") @db.Decimal(4, 1)
+  courseType   String? @map("course_type") @db.VarChar(30)
+  departmentId Int?    @map("department_id")
+  directorId   Int?    @map("leader_teacher_id")
 
-  officeId        Int? @map("office_id")
-  leaderTeacherId Int? @map("leader_teacher_id")
+  department      Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  director        Teacher?         @relation("CourseDirector", fields: [directorId], references: [id], onDelete: SetNull)
+  exams           Exam[]
+  textbookOrders  TextbookOrder[]
+  scheduleChanges ScheduleChange[]
+  teachingLogs    TeachingLog[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  office        TeachingOffice? @relation(fields: [officeId], references: [id])
-  leaderTeacher Teacher?        @relation("CourseLeader", fields: [leaderTeacherId], references: [id])
-
-  schedules      TeachingSchedule[]
-  exams          Exam[]
-  textbookOrders TextbookOrder[]
-
+  @@index([departmentId])
+  @@index([directorId])
   @@map("course")
 }
 
-/**
- * =========================
- * 教室
- * =========================
- */
-
 model Classroom {
-  id          Int             @id @default(autoincrement())
-  roomCode    String          @unique @map("room_code") @db.VarChar(30)
-  roomName    String          @map("room_name") @db.VarChar(100)
-  campus      String?         @db.VarChar(100)
-  building    String?         @db.VarChar(100)
-  roomType    String?         @map("room_type") @db.VarChar(30)
-  capacity    Int
-  area        Decimal?        @db.Decimal(8, 2)
-  managerName String?         @map("manager_name") @db.VarChar(50)
-  status      ClassroomStatus @default(AVAILABLE)
+  id       Int             @id @default(autoincrement())
+  campus   String?         @db.VarChar(100)
+  building String?         @db.VarChar(100)
+  roomNo   String          @unique @map("room_code") @db.VarChar(30)
+  type     String?         @map("room_type") @db.VarChar(30)
+  capacity Int
+  area     Decimal?        @db.Decimal(8, 2)
+  status   ClassroomStatus @default(AVAILABLE)
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  schedules       TeachingSchedule[]
-  applications    ClassroomApplication[]
-  adjustedCourses CourseAdjustment[]
-  exams           Exam[]
+  exams    Exam[]
+  requests ClassroomRequest[]
 
   @@map("classroom")
 }
 
-/**
- * =========================
- * 教学安排
- * =========================
- */
-
-model TeachingSchedule {
-  id           Int    @id @default(autoincrement())
-  semester     String @db.VarChar(30)
-  weekInfo     String @map("week_info") @db.VarChar(100)
-  weekday      Int
-  startSection Int    @map("start_section")
-  endSection   Int    @map("end_section")
-
-  courseId    Int @map("course_id")
-  teacherId   Int @map("teacher_id")
-  classId     Int @map("class_id")
-  classroomId Int @map("classroom_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  course    Course       @relation(fields: [courseId], references: [id])
-  teacher   Teacher      @relation(fields: [teacherId], references: [id])
-  classInfo StudentClass @relation(fields: [classId], references: [id])
-  classroom Classroom    @relation(fields: [classroomId], references: [id])
-
-  adjustmentForms CourseAdjustment[]
-  teachingLogs    TeachingLog[]
-
-  @@index([semester])
-  @@index([teacherId, weekday])
-  @@index([classroomId, weekday])
-  @@map("teaching_schedule")
-}
-
-/**
- * =========================
- * 教室申请
- * =========================
- */
-
-model ClassroomApplication {
-  id        Int            @id @default(autoincrement())
-  purpose   String         @db.VarChar(255)
-  useDate   DateTime       @map("use_date") @db.Date
-  startTime DateTime       @map("start_time") @db.Time(0)
-  endTime   DateTime       @map("end_time") @db.Time(0)
-  status    ApprovalStatus @default(PENDING)
-  comment   String?        @db.VarChar(255)
-
-  applicantId Int @map("applicant_id")
-  classroomId Int @map("classroom_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  applicant User      @relation(fields: [applicantId], references: [id])
-  classroom Classroom @relation(fields: [classroomId], references: [id])
-
-  @@index([classroomId, useDate])
-  @@map("classroom_application")
-}
-
-/**
- * =========================
- * 调课申请
- * =========================
- */
-
-model CourseAdjustment {
-  id             Int            @id @default(autoincrement())
-  originalDate   DateTime       @map("original_date") @db.Date
-  newDate        DateTime       @map("new_date") @db.Date
-  adjustedHours  Int            @default(0) @map("adjusted_hours")
-  reason         String         @db.VarChar(500)
-  status         ApprovalStatus @default(PENDING)
-  departmentNote String?        @map("department_note") @db.VarChar(255)
-  academicNote   String?        @map("academic_note") @db.VarChar(255)
-  leaderNote     String?        @map("leader_note") @db.VarChar(255)
-
-  scheduleId     Int  @map("schedule_id")
-  teacherId      Int  @map("teacher_id")
-  newClassroomId Int? @map("new_classroom_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  schedule     TeachingSchedule @relation(fields: [scheduleId], references: [id])
-  teacher      Teacher          @relation(fields: [teacherId], references: [id])
-  newClassroom Classroom?       @relation(fields: [newClassroomId], references: [id])
-
-  @@map("course_adjustment")
-}
-
-/**
- * =========================
- * 考试
- * =========================
- */
-
 model Exam {
   id            Int      @id @default(autoincrement())
-  examCode      String   @unique @map("exam_code") @db.VarChar(30)
-  examType      ExamType @map("exam_type")
-  examDate      DateTime @map("exam_date") @db.Date
-  startTime     DateTime @map("start_time") @db.Time(0)
-  endTime       DateTime @map("end_time") @db.Time(0)
-  expectedCount Int      @default(0) @map("expected_count")
-  actualCount   Int      @default(0) @map("actual_count")
-  absentCount   Int      @default(0) @map("absent_count")
+  semesterId    Int      @map("semester_id")
+  courseId      Int      @map("course_id")
+  classGroupId  Int      @map("class_group_id")
+  classroomId   Int      @map("classroom_id")
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  invigilatorId Int?     @map("invigilator_id")
 
-  courseId      Int  @map("course_id")
-  classId       Int  @map("class_id")
-  classroomId   Int  @map("classroom_id")
-  invigilatorId Int? @map("invigilator_id")
+  course      Course     @relation(fields: [courseId], references: [id])
+  classGroup  ClassGroup @relation(fields: [classGroupId], references: [id])
+  classroom   Classroom  @relation(fields: [classroomId], references: [id])
+  invigilator Teacher?   @relation("ExamInvigilator", fields: [invigilatorId], references: [id], onDelete: SetNull)
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  course      Course       @relation(fields: [courseId], references: [id])
-  classInfo   StudentClass @relation(fields: [classId], references: [id])
-  classroom   Classroom    @relation(fields: [classroomId], references: [id])
-  invigilator Teacher?     @relation("ExamInvigilator", fields: [invigilatorId], references: [id])
-
-  students ExamStudent[]
-
-  @@index([examDate])
+  @@index([semesterId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@index([classroomId])
+  @@index([invigilatorId])
   @@map("exam")
 }
 
-/**
- * =========================
- * 考生与成绩
- * =========================
- */
-
-model ExamStudent {
-  id            Int      @id @default(autoincrement())
-  seatNumber    String?  @map("seat_number") @db.VarChar(20)
-  score         Decimal? @db.Decimal(5, 2)
-  isAbsent      Boolean  @default(false) @map("is_absent")
-  admissionCode String?  @map("admission_code") @db.VarChar(50)
-
-  examId    Int @map("exam_id")
-  studentId Int @map("student_id")
-
-  exam    Exam    @relation(fields: [examId], references: [id])
-  student Student @relation(fields: [studentId], references: [id])
-
-  @@unique([examId, studentId])
-  @@map("exam_student")
-}
-
-/**
- * =========================
- * 教材
- * =========================
- */
-
 model Textbook {
-  id          Int      @id @default(autoincrement())
-  isbn        String   @unique @db.VarChar(30)
-  bookName    String   @map("book_name") @db.VarChar(150)
-  author      String?  @db.VarChar(100)
-  publisher   String?  @db.VarChar(100)
-  price       Decimal? @db.Decimal(10, 2)
-  stock       Int      @default(0)
-  description String?  @db.Text
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int     @id @default(autoincrement())
+  isbn      String  @unique @db.VarChar(30)
+  name      String  @db.VarChar(150)
+  author    String? @db.VarChar(100)
+  publisher String? @db.VarChar(150)
+  price     Decimal @db.Decimal(10, 2)
 
   orders TextbookOrder[]
 
   @@map("textbook")
 }
 
-/**
- * =========================
- * 教材征订
- * =========================
- */
-
 model TextbookOrder {
-  id       Int            @id @default(autoincrement())
-  semester String         @db.VarChar(30)
-  quantity Int
-  status   ApprovalStatus @default(PENDING)
+  id         Int                 @id @default(autoincrement())
+  semesterId Int                 @map("semester_id")
+  courseId   Int                 @map("course_id")
+  textbookId Int                 @map("textbook_id")
+  quantity   Int
+  status     TextbookOrderStatus @default(PENDING)
 
-  textbookId Int @map("textbook_id")
-  courseId   Int @map("course_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  textbook Textbook @relation(fields: [textbookId], references: [id])
   course   Course   @relation(fields: [courseId], references: [id])
+  textbook Textbook @relation(fields: [textbookId], references: [id])
 
-  @@unique([semester, textbookId, courseId])
+  @@index([semesterId])
+  @@index([courseId])
+  @@index([textbookId])
   @@map("textbook_order")
 }
 
-/**
- * =========================
- * 教学日志
- * =========================
- */
+model ClassroomRequest {
+  id          Int            @id @default(autoincrement())
+  applicantId Int            @map("applicant_id")
+  classroomId Int            @map("classroom_id")
+  startTime   DateTime       @map("start_time")
+  endTime     DateTime       @map("end_time")
+  purpose     String         @db.VarChar(255)
+  status      WorkflowStatus @default(PENDING)
 
-model TeachingLog {
-  id              Int       @id @default(autoincrement())
-  teachingDate    DateTime  @map("teaching_date") @db.Date
-  teachingContent String    @map("teaching_content") @db.Text
-  attendanceNote  String?   @map("attendance_note") @db.Text
-  submittedAt     DateTime? @map("submitted_at")
+  applicant User      @relation("RequestApplicant", fields: [applicantId], references: [id])
+  classroom Classroom @relation(fields: [classroomId], references: [id])
 
-  scheduleId Int @map("schedule_id")
-  teacherId  Int @map("teacher_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  schedule TeachingSchedule @relation(fields: [scheduleId], references: [id])
-  teacher  Teacher          @relation(fields: [teacherId], references: [id])
-
-  attendance AttendanceRecord[]
-
-  @@map("teaching_log")
+  @@index([applicantId])
+  @@index([classroomId])
+  @@map("classroom_request")
 }
 
-/**
- * =========================
- * 学生考勤
- * =========================
- */
+model ScheduleChange {
+  id           Int            @id @default(autoincrement())
+  teacherId    Int            @map("teacher_id")
+  courseId     Int            @map("course_id")
+  classGroupId Int            @map("class_group_id")
+  hours        Decimal        @db.Decimal(5, 1)
+  reason       String         @db.VarChar(500)
+  status       WorkflowStatus @default(PENDING)
 
-model AttendanceRecord {
-  id     Int              @id @default(autoincrement())
-  status AttendanceStatus
-  remark String?          @db.VarChar(255)
+  teacher    Teacher    @relation(fields: [teacherId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
 
-  teachingLogId Int @map("teaching_log_id")
-  studentId     Int @map("student_id")
-
-  teachingLog TeachingLog @relation(fields: [teachingLogId], references: [id])
-  student     Student     @relation(fields: [studentId], references: [id])
-
-  @@unique([teachingLogId, studentId])
-  @@map("attendance_record")
+  @@index([teacherId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@map("schedule_change")
 }
 
-/**
- * =========================
- * 毕业资格审核
- * =========================
- */
-
-model GraduationAudit {
-  id              Int              @id @default(autoincrement())
-  requiredCredits Decimal          @map("required_credits") @db.Decimal(6, 1)
-  earnedCredits   Decimal          @map("earned_credits") @db.Decimal(6, 1)
-  failedCourses   Int              @default(0) @map("failed_courses")
-  status          GraduationStatus @default(PENDING)
-  auditComment    String?          @map("audit_comment") @db.VarChar(500)
-  auditedAt       DateTime?        @map("audited_at")
-
-  studentId Int @unique @map("student_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model GraduationReview {
+  id                      Int              @id @default(autoincrement())
+  studentId               Int              @map("student_id")
+  semesterId              Int              @map("semester_id")
+  totalCredits            Decimal          @map("total_credits") @db.Decimal(6, 1)
+  hasFailedRequiredCourse Boolean          @default(false) @map("has_failed_required_course")
+  result                  GraduationResult @default(PENDING)
 
   student Student @relation(fields: [studentId], references: [id])
 
-  @@map("graduation_audit")
+  @@unique([studentId, semesterId])
+  @@index([semesterId])
+  @@map("graduation_review")
+}
+
+model TeachingLog {
+  id                Int               @id @default(autoincrement())
+  teacherId         Int               @map("teacher_id")
+  courseId          Int               @map("course_id")
+  classGroupId      Int               @map("class_group_id")
+  lessonDate        DateTime          @map("lesson_date") @db.Date
+  content           String            @db.Text
+  attendanceSummary String?           @map("attendance_summary") @db.Text
+  status            TeachingLogStatus @default(DRAFT)
+
+  teacher    Teacher    @relation(fields: [teacherId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
+
+  @@index([teacherId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@map("teaching_log")
+}
+
+model ApprovalRecord {
+  id           Int            @id @default(autoincrement())
+  businessType String         @map("business_type") @db.VarChar(50)
+  businessId   Int            @map("business_id")
+  operatorId   Int            @map("operator_id")
+  action       ApprovalAction
+  comment      String?        @db.VarChar(500)
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  operator User @relation("ApprovalOperator", fields: [operatorId], references: [id])
+
+  @@index([businessType, businessId])
+  @@index([operatorId])
+  @@map("approval_record")
+}
+
+model OperationLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  module    String   @db.VarChar(50)
+  action    String   @db.VarChar(100)
+  targetId  Int?     @map("target_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([module, targetId])
+  @@map("operation_log")
 }
