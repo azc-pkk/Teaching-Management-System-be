@@ -7,7 +7,6 @@ import {
   ClassroomStatus,
   GraduationResult,
   PrismaClient,
-  SemesterStatus,
   StudentStatus,
   TeachingLogStatus,
   TextbookOrderStatus,
@@ -72,7 +71,6 @@ async function main() {
       teacherType: '专任教师',
       title: '副教授',
       phone: '13800000001',
-      email: 'zhangwei@example.edu.cn',
     },
     create: {
       employeeNo: 'T0001',
@@ -81,7 +79,6 @@ async function main() {
       teacherType: '专任教师',
       title: '副教授',
       phone: '13800000001',
-      email: 'zhangwei@example.edu.cn',
     },
   });
 
@@ -93,7 +90,6 @@ async function main() {
       teacherType: '专任教师',
       title: '讲师',
       phone: '13800000002',
-      email: 'limin@example.edu.cn',
     },
     create: {
       employeeNo: 'T0002',
@@ -102,7 +98,6 @@ async function main() {
       teacherType: '专任教师',
       title: '讲师',
       phone: '13800000002',
-      email: 'limin@example.edu.cn',
     },
   });
 
@@ -114,7 +109,6 @@ async function main() {
       teacherType: '外聘教师',
       title: '教授',
       phone: '13800000003',
-      email: 'wangqiang@example.edu.cn',
     },
     create: {
       employeeNo: 'T0003',
@@ -123,7 +117,6 @@ async function main() {
       teacherType: '外聘教师',
       title: '教授',
       phone: '13800000003',
-      email: 'wangqiang@example.edu.cn',
     },
   });
 
@@ -135,7 +128,6 @@ async function main() {
       teacherType: '专任教师',
       title: '副教授',
       phone: '13800000004',
-      email: 'zhaomin@example.edu.cn',
     },
     create: {
       employeeNo: 'T0004',
@@ -144,7 +136,6 @@ async function main() {
       teacherType: '专任教师',
       title: '副教授',
       phone: '13800000004',
-      email: 'zhaomin@example.edu.cn',
     },
   });
 
@@ -156,7 +147,6 @@ async function main() {
       teacherType: '管理人员',
       title: '教授',
       phone: '13800000005',
-      email: 'chenhua@example.edu.cn',
     },
     create: {
       employeeNo: 'T0005',
@@ -165,7 +155,6 @@ async function main() {
       teacherType: '管理人员',
       title: '教授',
       phone: '13800000005',
-      email: 'chenhua@example.edu.cn',
     },
   });
 
@@ -303,39 +292,25 @@ async function main() {
     );
   }
 
-  const semester = await prisma.semester.upsert({
-    where: { code: '2025-2026-2' },
-    update: {
-      name: '2025—2026学年第二学期',
-      startDate: new Date('2026-02-23T00:00:00+08:00'),
-      endDate: new Date('2026-07-10T00:00:00+08:00'),
-      status: SemesterStatus.ACTIVE,
-    },
-    create: {
-      code: '2025-2026-2',
-      name: '2025—2026学年第二学期',
-      startDate: new Date('2026-02-23T00:00:00+08:00'),
-      endDate: new Date('2026-07-10T00:00:00+08:00'),
-      status: SemesterStatus.ACTIVE,
-    },
-  });
+  // 图片仅定义semesterId，没有定义Semester实体，因此使用固定测试学期编号。
+  const semesterId = 1;
 
   const classroom1 = await prisma.classroom.upsert({
     where: { roomNo: 'A101' },
-    update: { name: '教学楼A101', campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
-    create: { roomNo: 'A101', name: '教学楼A101', campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
+    update: { campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
+    create: { roomNo: 'A101', campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
   });
 
   const classroom2 = await prisma.classroom.upsert({
     where: { roomNo: 'A102' },
-    update: { name: '教学楼A102', campus: '主校区', building: '第一教学楼', type: '普通教室', capacity: 45, area: 70, status: ClassroomStatus.AVAILABLE },
-    create: { roomNo: 'A102', name: '教学楼A102', campus: '主校区', building: '第一教学楼', type: '普通教室', capacity: 45, area: 70, status: ClassroomStatus.AVAILABLE },
+    update: { campus: '主校区', building: '第一教学楼', type: '普通教室', capacity: 45, area: 70, status: ClassroomStatus.AVAILABLE },
+    create: { roomNo: 'A102', campus: '主校区', building: '第一教学楼', type: '普通教室', capacity: 45, area: 70, status: ClassroomStatus.AVAILABLE },
   });
 
   await prisma.classroom.upsert({
     where: { roomNo: 'B201' },
-    update: { name: '实验楼B201', campus: '主校区', building: '实验楼', type: '计算机实验室', capacity: 50, area: 100, status: ClassroomStatus.MAINTENANCE },
-    create: { roomNo: 'B201', name: '实验楼B201', campus: '主校区', building: '实验楼', type: '计算机实验室', capacity: 50, area: 100, status: ClassroomStatus.MAINTENANCE },
+    update: { campus: '主校区', building: '实验楼', type: '计算机实验室', capacity: 50, area: 100, status: ClassroomStatus.MAINTENANCE },
+    create: { roomNo: 'B201', campus: '主校区', building: '实验楼', type: '计算机实验室', capacity: 50, area: 100, status: ClassroomStatus.MAINTENANCE },
   });
 
   const course1 = await prisma.course.upsert({
@@ -358,23 +333,22 @@ async function main() {
 
   const examStart = new Date('2026-07-01T09:00:00+08:00');
   const existingExam = await prisma.exam.findFirst({
-    where: { semesterId: semester.id, courseId: course1.id, classGroupId: computerClass.id, startTime: examStart },
+    where: { semesterId, courseId: course1.id, classGroupId: computerClass.id, startTime: examStart },
   });
   const exam = existingExam
     ? await prisma.exam.update({
         where: { id: existingExam.id },
-        data: { classroomId: classroom1.id, endTime: new Date('2026-07-01T11:00:00+08:00'), invigilatorId: teacher3.id, status: WorkflowStatus.APPROVED },
+        data: { classroomId: classroom1.id, endTime: new Date('2026-07-01T11:00:00+08:00'), invigilatorId: teacher3.id },
       })
     : await prisma.exam.create({
         data: {
-          semesterId: semester.id,
+          semesterId,
           courseId: course1.id,
           classGroupId: computerClass.id,
           classroomId: classroom1.id,
           startTime: examStart,
           endTime: new Date('2026-07-01T11:00:00+08:00'),
           invigilatorId: teacher3.id,
-          status: WorkflowStatus.APPROVED,
         },
       });
 
@@ -391,21 +365,21 @@ async function main() {
   });
 
   const existingOrder = await prisma.textbookOrder.findFirst({
-    where: { semesterId: semester.id, courseId: course1.id, textbookId: textbook1.id },
+    where: { semesterId, courseId: course1.id, textbookId: textbook1.id },
   });
   if (existingOrder) {
     await prisma.textbookOrder.update({ where: { id: existingOrder.id }, data: { quantity: 60, status: TextbookOrderStatus.APPROVED } });
   } else {
-    await prisma.textbookOrder.create({ data: { semesterId: semester.id, courseId: course1.id, textbookId: textbook1.id, quantity: 60, status: TextbookOrderStatus.APPROVED } });
+    await prisma.textbookOrder.create({ data: { semesterId, courseId: course1.id, textbookId: textbook1.id, quantity: 60, status: TextbookOrderStatus.APPROVED } });
   }
 
   const existingOrder2 = await prisma.textbookOrder.findFirst({
-    where: { semesterId: semester.id, courseId: course2.id, textbookId: textbook2.id },
+    where: { semesterId, courseId: course2.id, textbookId: textbook2.id },
   });
   if (existingOrder2) {
     await prisma.textbookOrder.update({ where: { id: existingOrder2.id }, data: { quantity: 45, status: TextbookOrderStatus.PENDING } });
   } else {
-    await prisma.textbookOrder.create({ data: { semesterId: semester.id, courseId: course2.id, textbookId: textbook2.id, quantity: 45, status: TextbookOrderStatus.PENDING } });
+    await prisma.textbookOrder.create({ data: { semesterId, courseId: course2.id, textbookId: textbook2.id, quantity: 45, status: TextbookOrderStatus.PENDING } });
   }
 
   const requestStart = new Date('2026-06-20T14:00:00+08:00');
@@ -429,15 +403,15 @@ async function main() {
     : await prisma.scheduleChange.create({ data: { teacherId: teacher3.id, courseId: course1.id, classGroupId: computerClass.id, hours: 2, reason: '参加教学研讨会', status: WorkflowStatus.PENDING } });
 
   await prisma.graduationReview.upsert({
-    where: { studentId_semesterId: { studentId: students[5]!.id, semesterId: semester.id } },
-    update: { totalCredits: 132, hasFailedRequiredCourse: false, result: GraduationResult.PASSED, reason: '符合毕业条件', reviewedAt: new Date('2026-06-30T10:00:00+08:00') },
-    create: { studentId: students[5]!.id, semesterId: semester.id, totalCredits: 132, hasFailedRequiredCourse: false, result: GraduationResult.PASSED, reason: '符合毕业条件', reviewedAt: new Date('2026-06-30T10:00:00+08:00') },
+    where: { studentId_semesterId: { studentId: students[5]!.id, semesterId } },
+    update: { totalCredits: 132, hasFailedRequiredCourse: false, result: GraduationResult.PASSED },
+    create: { studentId: students[5]!.id, semesterId, totalCredits: 132, hasFailedRequiredCourse: false, result: GraduationResult.PASSED },
   });
 
   await prisma.graduationReview.upsert({
-    where: { studentId_semesterId: { studentId: students[1]!.id, semesterId: semester.id } },
-    update: { totalCredits: 116, hasFailedRequiredCourse: true, result: GraduationResult.REVIEW_REQUIRED, reason: '学分不足且存在必修课未通过', reviewedAt: null },
-    create: { studentId: students[1]!.id, semesterId: semester.id, totalCredits: 116, hasFailedRequiredCourse: true, result: GraduationResult.REVIEW_REQUIRED, reason: '学分不足且存在必修课未通过' },
+    where: { studentId_semesterId: { studentId: students[1]!.id, semesterId } },
+    update: { totalCredits: 116, hasFailedRequiredCourse: true, result: GraduationResult.REVIEW_REQUIRED },
+    create: { studentId: students[1]!.id, semesterId, totalCredits: 116, hasFailedRequiredCourse: true, result: GraduationResult.REVIEW_REQUIRED },
   });
 
   const lessonDate = new Date('2026-06-10T00:00:00+08:00');
@@ -494,7 +468,6 @@ async function main() {
         teacherType: index % 3 === 0 ? '外聘教师' : '专任教师',
         title: index % 2 === 0 ? '讲师' : '副教授',
         phone: `1381000${String(index).padStart(4, '0')}`,
-        email: `teacher${index}@example.edu.cn`,
       },
       create: {
         employeeNo,
@@ -503,7 +476,6 @@ async function main() {
         teacherType: index % 3 === 0 ? '外聘教师' : '专任教师',
         title: index % 2 === 0 ? '讲师' : '副教授',
         phone: `1381000${String(index).padStart(4, '0')}`,
-        email: `teacher${index}@example.edu.cn`,
       },
     });
     allTeachers.push(teacher);
@@ -595,7 +567,6 @@ async function main() {
       await prisma.classroom.upsert({
         where: { roomNo },
         update: {
-          name: `测试教学楼${roomNo}`,
           campus: index % 2 === 0 ? '主校区' : '新校区',
           building: '测试教学楼',
           type: index % 3 === 0 ? '计算机实验室' : '多媒体教室',
@@ -605,7 +576,6 @@ async function main() {
         },
         create: {
           roomNo,
-          name: `测试教学楼${roomNo}`,
           campus: index % 2 === 0 ? '主校区' : '新校区',
           building: '测试教学楼',
           type: index % 3 === 0 ? '计算机实验室' : '多媒体教室',
@@ -638,12 +608,12 @@ async function main() {
     const startTime = new Date(Date.UTC(2026, 5, 1 + index, 1, 0, 0));
     const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
     const existing = await prisma.exam.findFirst({
-      where: { semesterId: semester.id, courseId: course.id, classGroupId: classGroup.id, startTime },
+      where: { semesterId, courseId: course.id, classGroupId: classGroup.id, startTime },
     });
     bulkExams.push(
       existing
-        ? await prisma.exam.update({ where: { id: existing.id }, data: { classroomId: classroom.id, endTime, invigilatorId: invigilator.id, status: index % 5 === 0 ? WorkflowStatus.COMPLETED : WorkflowStatus.APPROVED } })
-        : await prisma.exam.create({ data: { semesterId: semester.id, courseId: course.id, classGroupId: classGroup.id, classroomId: classroom.id, startTime, endTime, invigilatorId: invigilator.id, status: index % 5 === 0 ? WorkflowStatus.COMPLETED : WorkflowStatus.APPROVED } }),
+        ? await prisma.exam.update({ where: { id: existing.id }, data: { classroomId: classroom.id, endTime, invigilatorId: invigilator.id } })
+        : await prisma.exam.create({ data: { semesterId, courseId: course.id, classGroupId: classGroup.id, classroomId: classroom.id, startTime, endTime, invigilatorId: invigilator.id } }),
     );
   }
 
@@ -651,7 +621,7 @@ async function main() {
     const course = bulkCourses[(index - 1) % bulkCourses.length]!;
     const textbook = bulkTextbooks[(index - 1) % bulkTextbooks.length]!;
     const existing = await prisma.textbookOrder.findFirst({
-      where: { semesterId: semester.id, courseId: course.id, textbookId: textbook.id },
+      where: { semesterId, courseId: course.id, textbookId: textbook.id },
     });
     const data = {
       quantity: 30 + index * 2,
@@ -660,7 +630,7 @@ async function main() {
     if (existing) {
       await prisma.textbookOrder.update({ where: { id: existing.id }, data });
     } else {
-      await prisma.textbookOrder.create({ data: { semesterId: semester.id, courseId: course.id, textbookId: textbook.id, ...data } });
+      await prisma.textbookOrder.create({ data: { semesterId, courseId: course.id, textbookId: textbook.id, ...data } });
     }
   }
 
@@ -706,9 +676,9 @@ async function main() {
         ? GraduationResult.PASSED
         : GraduationResult.FAILED;
     await prisma.graduationReview.upsert({
-      where: { studentId_semesterId: { studentId: student.id, semesterId: semester.id } },
-      update: { totalCredits, hasFailedRequiredCourse, result, reason: hasFailedRequiredCourse ? '存在必修课未通过' : '批量毕业审核数据', reviewedAt: result === GraduationResult.PASSED ? new Date('2026-06-30T10:00:00+08:00') : null },
-      create: { studentId: student.id, semesterId: semester.id, totalCredits, hasFailedRequiredCourse, result, reason: hasFailedRequiredCourse ? '存在必修课未通过' : '批量毕业审核数据', reviewedAt: result === GraduationResult.PASSED ? new Date('2026-06-30T10:00:00+08:00') : null },
+      where: { studentId_semesterId: { studentId: student.id, semesterId } },
+      update: { totalCredits, hasFailedRequiredCourse, result },
+      create: { studentId: student.id, semesterId, totalCredits, hasFailedRequiredCourse, result },
     });
   }
 
@@ -761,7 +731,6 @@ async function main() {
     prisma.student.count(),
     prisma.course.count(),
     prisma.classroom.count(),
-    prisma.semester.count(),
     prisma.exam.count(),
     prisma.textbook.count(),
     prisma.textbookOrder.count(),
@@ -782,16 +751,15 @@ async function main() {
     students: counts[5],
     courses: counts[6],
     classrooms: counts[7],
-    semesters: counts[8],
-    exams: counts[9],
-    textbooks: counts[10],
-    textbookOrders: counts[11],
-    classroomRequests: counts[12],
-    scheduleChanges: counts[13],
-    graduationReviews: counts[14],
-    teachingLogs: counts[15],
-    approvalRecords: counts[16],
-    operationLogs: counts[17],
+    exams: counts[8],
+    textbooks: counts[9],
+    textbookOrders: counts[10],
+    classroomRequests: counts[11],
+    scheduleChanges: counts[12],
+    graduationReviews: counts[13],
+    teachingLogs: counts[14],
+    approvalRecords: counts[15],
+    operationLogs: counts[16],
   });
 
   const totalRecords = counts.reduce((sum, count) => sum + count, 0);
