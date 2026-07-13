@@ -23,7 +23,10 @@ import { DatabaseModule } from './database/database.module';
     BaseDataModule,
     TeachersModule,
     StudentsModule,
+<<<<<<< HEAD
     ClassroomsModule,
+=======
+>>>>>>> 5a080c6a49665c383e8c181ed06277452f58905f
     ClassroomRequestsModule,
     ScheduleChangesModule,
     ExamsModule,
