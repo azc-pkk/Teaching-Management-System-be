@@ -8,7 +8,9 @@ import { ClassroomRequestsModule } from './modules/classroom-requests/classroom-
 import { ExamsModule } from './modules/exams/exams.module';
 import { GraduationModule } from './modules/graduation/graduation.module';
 import { ScheduleChangesModule } from './modules/schedule-changes/schedule-changes.module';
+import { StudentsModule } from './modules/students/students.module';
 import { TeachingLogsModule } from './modules/teaching-logs/teaching-logs.module';
+import { TeachersModule } from './modules/teachers/teachers.module';
 import { TextbooksModule } from './modules/textbooks/textbooks.module';
 import { DatabaseModule } from './database/database.module';
 
@@ -18,6 +20,8 @@ import { DatabaseModule } from './database/database.module';
     DatabaseModule,
     AuthModule,
     BaseDataModule,
+    TeachersModule,
+    StudentsModule,
     ClassroomRequestsModule,
     ScheduleChangesModule,
     ExamsModule,

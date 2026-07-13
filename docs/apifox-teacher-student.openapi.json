@@ -509,6 +509,56 @@
           }
         }
       }
+    },
+    "/teachers/options": {
+      "get": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "查询教师管理下拉选项",
+        "description": "用于教师管理页面初始化下拉数据，返回院系列表、教师职称列表和教师类型列表。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherOptionsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "departments": [
+                      {
+                        "id": 1,
+                        "name": "信息工程学院"
+                      },
+                      {
+                        "id": 2,
+                        "name": "计算机系"
+                      }
+                    ],
+                    "titles": [
+                      "副教授",
+                      "教授",
+                      "讲师"
+                    ],
+                    "teacherTypes": [
+                      "专任教师",
+                      "外聘教师"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -997,6 +1047,50 @@
               "message": {
                 "type": "string",
                 "example": "参数错误"
+              }
+            }
+          }
+        }
+      },
+      "TeacherOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "信息工程学院"
+                    }
+                  }
+                }
+              },
+              "titles": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "讲师"
+                }
+              },
+              "teacherTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "专任教师"
+                }
               }
             }
           }
