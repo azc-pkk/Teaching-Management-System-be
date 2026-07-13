@@ -552,7 +552,8 @@
                       "专任教师",
                       "外聘教师"
                     ]
-                  }
+                  },
+                  "error": null
                 }
               }
             }
@@ -903,8 +904,19 @@
           },
           "data": {
             "$ref": "#/components/schemas/Teacher"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "StudentResponse": {
         "type": "object",
@@ -915,8 +927,19 @@
           },
           "data": {
             "$ref": "#/components/schemas/Student"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "TeacherPageResponse": {
         "type": "object",
@@ -947,8 +970,19 @@
                 "example": 1
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "StudentPageResponse": {
         "type": "object",
@@ -979,8 +1013,19 @@
                 "example": 1
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "DepartmentListResponse": {
         "type": "object",
@@ -994,8 +1039,19 @@
             "items": {
               "$ref": "#/components/schemas/Department"
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ClassGroupListResponse": {
         "type": "object",
@@ -1009,8 +1065,19 @@
             "items": {
               "$ref": "#/components/schemas/ClassGroup"
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "DeleteResponse": {
         "type": "object",
@@ -1027,8 +1094,19 @@
                 "example": true
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ErrorResponse": {
         "type": "object",
@@ -1047,10 +1125,28 @@
               "message": {
                 "type": "string",
                 "example": "参数错误"
+              },
+              "details": {
+                "nullable": true,
+                "description": "??????????????????"
               }
-            }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "TeacherOptionsResponse": {
         "type": "object",
@@ -1093,8 +1189,19 @@
                 }
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       }
     }
   }

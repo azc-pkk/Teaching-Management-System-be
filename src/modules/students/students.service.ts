@@ -60,13 +60,10 @@ export class StudentsService {
     ]);
 
     return {
-      success: true,
-      data: {
-        list: students.map((student) => this.toStudentDto(student)),
-        page,
-        pageSize,
-        total,
-      },
+      list: students.map((student) => this.toStudentDto(student)),
+      page,
+      pageSize,
+      total,
     };
   }
 
@@ -97,10 +94,7 @@ export class StudentsService {
       throw new NotFoundException('Student not found');
     }
 
-    return {
-      success: true,
-      data: this.toStudentDto(student),
-    };
+    return this.toStudentDto(student);
   }
 
   async create(createStudentDto: CreateStudentDto) {
@@ -129,10 +123,7 @@ export class StudentsService {
       },
     });
 
-    return {
-      success: true,
-      data: this.toStudentDto(student),
-    };
+    return this.toStudentDto(student);
   }
 
   async update(id: number, updateStudentDto: UpdateStudentDto) {
@@ -167,10 +158,7 @@ export class StudentsService {
       },
     });
 
-    return {
-      success: true,
-      data: this.toStudentDto(student),
-    };
+    return this.toStudentDto(student);
   }
 
   async remove(id: number) {
@@ -184,12 +172,7 @@ export class StudentsService {
 
     await this.prisma.student.delete({ where: { id } });
 
-    return {
-      success: true,
-      data: {
-        deleted: true,
-      },
-    };
+    return { deleted: true };
   }
 
   private async ensureStudentExists(id: number) {
@@ -203,7 +186,10 @@ export class StudentsService {
     }
   }
 
-  private async ensureStudentNoAvailable(studentNo: string, excludeId?: number) {
+  private async ensureStudentNoAvailable(
+    studentNo: string,
+    excludeId?: number,
+  ) {
     const student = await this.prisma.student.findUnique({
       where: { studentNo },
       select: { id: true },

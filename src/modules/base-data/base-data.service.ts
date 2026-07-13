@@ -29,10 +29,7 @@ export class BaseDataService {
       },
     });
 
-    return {
-      success: true,
-      data: departments,
-    };
+    return departments;
   }
 
   async findMajors(query: MajorQueryDto) {
@@ -51,17 +48,14 @@ export class BaseDataService {
       },
     });
 
-    return {
-      success: true,
-      data: majors.map((major) => ({
-        id: major.id,
-        name: major.name,
-        code: major.code,
-        departmentId: major.departmentId,
-        departmentName: major.department.name,
-        durationYears: major.durationYears,
-      })),
-    };
+    return majors.map((major) => ({
+      id: major.id,
+      name: major.name,
+      code: major.code,
+      departmentId: major.departmentId,
+      departmentName: major.department.name,
+      durationYears: major.durationYears,
+    }));
   }
 
   async findClassGroups(query: ClassGroupQueryDto) {
@@ -88,19 +82,16 @@ export class BaseDataService {
       },
     });
 
-    return {
-      success: true,
-      data: classGroups.map((classGroup) => ({
-        id: classGroup.id,
-        name: classGroup.name,
-        grade: classGroup.grade,
-        majorId: classGroup.majorId,
-        majorName: classGroup.major.name,
-        departmentId: classGroup.departmentId,
-        departmentName: classGroup.department.name,
-        studentCount: classGroup.studentCount,
-      })),
-    };
+    return classGroups.map((classGroup) => ({
+      id: classGroup.id,
+      name: classGroup.name,
+      grade: classGroup.grade,
+      majorId: classGroup.majorId,
+      majorName: classGroup.major.name,
+      departmentId: classGroup.departmentId,
+      departmentName: classGroup.department.name,
+      studentCount: classGroup.studentCount,
+    }));
   }
 
   async findCourses(query: CourseQueryDto) {
@@ -109,10 +100,7 @@ export class BaseDataService {
       where: {
         departmentId: query.departmentId,
         OR: keyword
-          ? [
-              { code: { contains: keyword } },
-              { name: { contains: keyword } },
-            ]
+          ? [{ code: { contains: keyword } }, { name: { contains: keyword } }]
           : undefined,
       },
       orderBy: { code: 'asc' },
@@ -132,20 +120,17 @@ export class BaseDataService {
       },
     });
 
-    return {
-      success: true,
-      data: courses.map((course) => ({
-        id: course.id,
-        code: course.code,
-        name: course.name,
-        credits: Number(course.credits),
-        courseType: course.courseType,
-        departmentId: course.departmentId,
-        departmentName: course.department?.name ?? null,
-        directorId: course.directorId,
-        directorName: course.director?.name ?? null,
-      })),
-    };
+    return courses.map((course) => ({
+      id: course.id,
+      code: course.code,
+      name: course.name,
+      credits: Number(course.credits),
+      courseType: course.courseType,
+      departmentId: course.departmentId,
+      departmentName: course.department?.name ?? null,
+      directorId: course.directorId,
+      directorName: course.director?.name ?? null,
+    }));
   }
 
   async findClassrooms(query: ClassroomQueryDto) {
@@ -165,18 +150,15 @@ export class BaseDataService {
       orderBy: [{ campus: 'asc' }, { building: 'asc' }, { roomNo: 'asc' }],
     });
 
-    return {
-      success: true,
-      data: classrooms.map((classroom) => ({
-        id: classroom.id,
-        campus: classroom.campus,
-        building: classroom.building,
-        roomNo: classroom.roomNo,
-        type: classroom.type,
-        capacity: classroom.capacity,
-        area: classroom.area === null ? null : Number(classroom.area),
-        status: classroom.status,
-      })),
-    };
+    return classrooms.map((classroom) => ({
+      id: classroom.id,
+      campus: classroom.campus,
+      building: classroom.building,
+      roomNo: classroom.roomNo,
+      type: classroom.type,
+      capacity: classroom.capacity,
+      area: classroom.area === null ? null : Number(classroom.area),
+      status: classroom.status,
+    }));
   }
 }

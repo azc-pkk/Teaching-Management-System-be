@@ -50,13 +50,10 @@ export class TeachersService {
     ]);
 
     return {
-      success: true,
-      data: {
-        list: teachers.map((teacher) => this.toTeacherDto(teacher)),
-        page,
-        pageSize,
-        total,
-      },
+      list: teachers.map((teacher) => this.toTeacherDto(teacher)),
+      page,
+      pageSize,
+      total,
     };
   }
 
@@ -77,61 +74,56 @@ export class TeachersService {
       throw new NotFoundException('Teacher not found');
     }
 
-    return {
-      success: true,
-      data: this.toTeacherDto(teacher),
-    };
+    return this.toTeacherDto(teacher);
   }
 
   async findOptions() {
-    const [departments, teacherTitles, teacherTypes] = await this.prisma.$transaction([
-      this.prisma.department.findMany({
-        orderBy: [{ parentId: 'asc' }, { code: 'asc' }],
-        select: {
-          id: true,
-          name: true,
-        },
-      }),
-      this.prisma.teacher.findMany({
-        where: {
-          title: {
-            not: null,
+    const [departments, teacherTitles, teacherTypes] =
+      await this.prisma.$transaction([
+        this.prisma.department.findMany({
+          orderBy: [{ parentId: 'asc' }, { code: 'asc' }],
+          select: {
+            id: true,
+            name: true,
           },
-        },
-        distinct: ['title'],
-        orderBy: { title: 'asc' },
-        select: {
-          title: true,
-        },
-      }),
-      this.prisma.teacher.findMany({
-        where: {
-          teacherType: {
-            not: null,
+        }),
+        this.prisma.teacher.findMany({
+          where: {
+            title: {
+              not: null,
+            },
           },
-        },
-        distinct: ['teacherType'],
-        orderBy: { teacherType: 'asc' },
-        select: {
-          teacherType: true,
-        },
-      }),
-    ]);
+          distinct: ['title'],
+          orderBy: { title: 'asc' },
+          select: {
+            title: true,
+          },
+        }),
+        this.prisma.teacher.findMany({
+          where: {
+            teacherType: {
+              not: null,
+            },
+          },
+          distinct: ['teacherType'],
+          orderBy: { teacherType: 'asc' },
+          select: {
+            teacherType: true,
+          },
+        }),
+      ]);
 
     return {
-      success: true,
-      data: {
-        departments: departments.map((department) => ({
-          id: department.id,
-          name: department.name,
-        })),
-        titles: teacherTitles
-          .map((teacher) => teacher.title)
-          .filter((title): title is string => Boolean(title)),
-        teacherTypes: teacherTypes
-          .map((teacher) => teacher.teacherType)
-          .filter((teacherType): teacherType is string => Boolean(teacherType)),
-      },
+      departments: departments.map((department) => ({
+        id: department.id,
+        name: department.name,
+      })),
+      titles: teacherTitles
+        .map((teacher) => teacher.title)
+        .filter((title): title is string => Boolean(title)),
+      teacherTypes: teacherTypes
+        .map((teacher) => teacher.teacherType)
+        .filter((teacherType): teacherType is string => Boolean(teacherType)),
     };
   }
 
@@ -151,10 +143,7 @@ export class TeachersService {
       },
     });
 
-    return {
-      success: true,
-      data: this.toTeacherDto(teacher),
-    };
+    return this.toTeacherDto(teacher);
   }
 
   async update(id: number, updateTeacherDto: UpdateTeacherDto) {
@@ -179,10 +168,7 @@ export class TeachersService {
       },
     });
 
-    return {
-      success: true,
-      data: this.toTeacherDto(teacher),
-    };
+    return this.toTeacherDto(teacher);
   }
 
   async remove(id: number) {
@@ -196,12 +182,7 @@ export class TeachersService {
 
     await this.prisma.teacher.delete({ where: { id } });
 
-    return {
-      success: true,
-      data: {
-        deleted: true,
-      },
-    };
+    return { deleted: true };
   }
 
   private async ensureTeacherExists(id: number) {
@@ -215,7 +196,10 @@ export class TeachersService {
     }
   }
 
-  private async ensureEmployeeNoAvailable(employeeNo: string, excludeId?: number) {
+  private async ensureEmployeeNoAvailable(
+    employeeNo: string,
+    excludeId?: number,
+  ) {
     const teacher = await this.prisma.teacher.findUnique({
       where: { employeeNo },
       select: { id: true },

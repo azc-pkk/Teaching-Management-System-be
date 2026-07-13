@@ -98,7 +98,8 @@
                     "page": 1,
                     "pageSize": 10,
                     "total": 1
-                  }
+                  },
+                  "error": null
                 }
               }
             }
@@ -183,7 +184,8 @@
                       "OCCUPIED",
                       "MAINTENANCE"
                     ]
-                  }
+                  },
+                  "error": null
                 }
               }
             }
@@ -352,7 +354,8 @@
               "error": {
                 "code": "CONFLICT",
                 "message": "Room number already exists"
-              }
+              },
+              "data": null
             }
           }
         }
@@ -495,8 +498,19 @@
           },
           "data": {
             "$ref": "#/components/schemas/Classroom"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ClassroomPageResponse": {
         "type": "object",
@@ -527,8 +541,19 @@
                 "example": 15
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ClassroomOptionsResponse": {
         "type": "object",
@@ -568,8 +593,19 @@
                 }
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "DeleteResponse": {
         "type": "object",
@@ -586,8 +622,19 @@
                 "example": true
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ErrorResponse": {
         "type": "object",
@@ -606,10 +653,28 @@
               "message": {
                 "type": "string",
                 "example": "参数错误"
+              },
+              "details": {
+                "nullable": true,
+                "description": "??????????????????"
               }
-            }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       }
     }
   }

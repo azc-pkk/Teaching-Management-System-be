@@ -27,6 +27,23 @@ describe('AppController (e2e)', () => {
       .expect(({ body }) => {
         expect(body.success).toBe(true);
         expect(body.data.status).toBe('ok');
+        expect(body.error).toBeNull();
+      });
+  });
+
+  it('/api/not-found (GET) should use the common error response', () => {
+    return request(app.getHttpServer())
+      .get('/api/not-found')
+      .expect(404)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          success: false,
+          data: null,
+          error: expect.objectContaining({
+            code: 'NOT_FOUND',
+            message: expect.any(String),
+          }),
+        });
       });
   });
 

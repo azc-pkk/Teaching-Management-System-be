@@ -41,18 +41,15 @@ export class AuthService {
     }
 
     return {
-      success: true,
-      data: {
-        token: this.createDemoToken(user.id, user.username, user.role),
-        user: {
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          role: user.role.toLowerCase(),
-          teacherId: user.teacher?.id ?? null,
-          studentId: user.student?.id ?? null,
-          enabled: user.enabled,
-        },
+      token: this.createDemoToken(user.id, user.username, user.role),
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role.toLowerCase(),
+        teacherId: user.teacher?.id ?? null,
+        studentId: user.student?.id ?? null,
+        enabled: user.enabled,
       },
     };
   }
@@ -106,12 +103,7 @@ export class AuthService {
       },
     });
 
-    return {
-      success: true,
-      data: {
-        user: this.toLoginUser(user),
-      },
-    };
+    return { user: this.toLoginUser(user) };
   }
 
   private verifyPassword(password: string, passwordHash: string) {
@@ -145,11 +137,12 @@ export class AuthService {
   }
 
   private createDemoToken(userId: number, username: string, role: string) {
-    const secret = this.configService.get<string>('JWT_SECRET') ?? 'demo-secret';
+    const secret =
+      this.configService.get<string>('JWT_SECRET') ?? 'demo-secret';
     const issuedAt = Math.floor(Date.now() / 1000);
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString(
-      'base64url',
-    );
+    const header = Buffer.from(
+      JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
+    ).toString('base64url');
     const payload = Buffer.from(
       JSON.stringify({
         sub: String(userId),

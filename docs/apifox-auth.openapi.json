@@ -59,7 +59,8 @@
                       "studentId": 3,
                       "enabled": true
                     }
-                  }
+                  },
+                  "error": null
                 }
               }
             }
@@ -79,7 +80,8 @@
                       "error": {
                         "code": "BAD_REQUEST",
                         "message": "Student number and name do not match"
-                      }
+                      },
+                      "data": null
                     }
                   },
                   "notEnrolled": {
@@ -89,7 +91,8 @@
                       "error": {
                         "code": "BAD_REQUEST",
                         "message": "Only enrolled students can register"
-                      }
+                      },
+                      "data": null
                     }
                   }
                 }
@@ -108,7 +111,8 @@
                   "error": {
                     "code": "CONFLICT",
                     "message": "This student has already registered"
-                  }
+                  },
+                  "data": null
                 }
               }
             }
@@ -170,7 +174,8 @@
                       "studentId": 3,
                       "enabled": true
                     }
-                  }
+                  },
+                  "error": null
                 }
               }
             }
@@ -187,7 +192,8 @@
                   "error": {
                     "code": "UNAUTHORIZED",
                     "message": "Invalid username or password"
-                  }
+                  },
+                  "data": null
                 }
               }
             }
@@ -299,8 +305,19 @@
                 "$ref": "#/components/schemas/AuthUser"
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "LoginResponse": {
         "type": "object",
@@ -320,8 +337,19 @@
                 "$ref": "#/components/schemas/AuthUser"
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ErrorResponse": {
         "type": "object",
@@ -340,10 +368,28 @@
               "message": {
                 "type": "string",
                 "example": "参数错误"
+              },
+              "details": {
+                "nullable": true,
+                "description": "??????????????????"
               }
-            }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       }
     }
   }

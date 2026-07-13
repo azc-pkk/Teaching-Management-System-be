@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,6 +15,8 @@ import { TeachingLogsModule } from './modules/teaching-logs/teaching-logs.module
 import { TeachersModule } from './modules/teachers/teachers.module';
 import { TextbooksModule } from './modules/textbooks/textbooks.module';
 import { DatabaseModule } from './database/database.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
 
 @Module({
   imports: [
@@ -23,10 +26,7 @@ import { DatabaseModule } from './database/database.module';
     BaseDataModule,
     TeachersModule,
     StudentsModule,
-<<<<<<< HEAD
     ClassroomsModule,
-=======
->>>>>>> 5a080c6a49665c383e8c181ed06277452f58905f
     ClassroomRequestsModule,
     ScheduleChangesModule,
     ExamsModule,
@@ -35,6 +35,16 @@ import { DatabaseModule } from './database/database.module';
     TeachingLogsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApiResponseInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}
