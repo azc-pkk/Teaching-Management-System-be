@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { BaseDataModule } from './modules/base-data/base-data.module';
 import { ClassroomRequestsModule } from './modules/classroom-requests/classroom-requests.module';
+import { ClassroomsModule } from './modules/classrooms/classrooms.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { GraduationModule } from './modules/graduation/graduation.module';
 import { ScheduleChangesModule } from './modules/schedule-changes/schedule-changes.module';
@@ -22,6 +23,7 @@ import { DatabaseModule } from './database/database.module';
     BaseDataModule,
     TeachersModule,
     StudentsModule,
+    ClassroomsModule,
     ClassroomRequestsModule,
     ScheduleChangesModule,
     ExamsModule,
