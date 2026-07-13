@@ -1,0 +1,30 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: teaching_management
+      MYSQL_USER: teaching_user
+      MYSQL_PASSWORD: teaching_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - teaching_management_mysql:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "teaching_user",
+          "-pteaching_password",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  teaching_management_mysql:

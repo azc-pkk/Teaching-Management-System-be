@@ -1,0 +1,396 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "教学过程管理系统 - 登录注册 API",
+    "version": "1.0.0",
+    "description": "用于导入 Apifox 的登录与学生自助注册接口。注册仅允许学生通过学号和姓名匹配学生档案后设置密码，其余角色不允许自助注册。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "本地后端服务"
+    }
+  ],
+  "tags": [
+    {
+      "name": "认证"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "学生自助注册",
+        "description": "学生通过学号和姓名匹配 student 表中的学生档案，匹配成功后设置自己的登录密码。教师、管理员、系部管理员等其他角色不允许通过该接口注册。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterStudentRequest"
+              },
+              "example": {
+                "studentNo": "20230004",
+                "name": "测试学生004",
+                "password": "Student123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterStudentResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "user": {
+                      "id": 9,
+                      "username": "20230004",
+                      "name": "测试学生004",
+                      "role": "student",
+                      "teacherId": null,
+                      "studentId": 3,
+                      "enabled": true
+                    }
+                  },
+                  "error": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "学号姓名不匹配、学生状态不允许注册或参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "mismatch": {
+                    "summary": "学号姓名不匹配",
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "BAD_REQUEST",
+                        "message": "Student number and name do not match"
+                      },
+                      "data": null
+                    }
+                  },
+                  "notEnrolled": {
+                    "summary": "非在校学生",
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "BAD_REQUEST",
+                        "message": "Only enrolled students can register"
+                      },
+                      "data": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "该学生已经注册过账号",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CONFLICT",
+                    "message": "This student has already registered"
+                  },
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "账号登录",
+        "description": "注册成功后的学生使用学号作为 username 登录；管理员、教师等系统内置账号继续使用各自账号登录。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "examples": {
+                "studentLogin": {
+                  "summary": "学生登录",
+                  "value": {
+                    "username": "20230004",
+                    "password": "Student123456"
+                  }
+                },
+                "adminLogin": {
+                  "summary": "管理员登录",
+                  "value": {
+                    "username": "admin",
+                    "password": "TmsSeed#2026!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "token": "eyJhbGciOiJIUzI1NiIs...",
+                    "user": {
+                      "id": 9,
+                      "username": "20230004",
+                      "name": "测试学生004",
+                      "role": "student",
+                      "teacherId": null,
+                      "studentId": 3,
+                      "enabled": true
+                    }
+                  },
+                  "error": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "账号或密码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid username or password"
+                  },
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RegisterStudentRequest": {
+        "type": "object",
+        "required": [
+          "studentNo",
+          "name",
+          "password"
+        ],
+        "properties": {
+          "studentNo": {
+            "type": "string",
+            "description": "学生学号，也是注册后的登录账号",
+            "example": "20230004"
+          },
+          "name": {
+            "type": "string",
+            "description": "学生姓名，必须和学生档案中的姓名一致",
+            "example": "测试学生004"
+          },
+          "password": {
+            "type": "string",
+            "description": "学生自己设置的登录密码，至少 6 位",
+            "minLength": 6,
+            "example": "Student123456"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "登录账号。学生注册后使用学号登录。",
+            "example": "20230004"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "Student123456"
+          }
+        }
+      },
+      "AuthUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "name",
+          "role",
+          "enabled"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 9
+          },
+          "username": {
+            "type": "string",
+            "example": "20230004"
+          },
+          "name": {
+            "type": "string",
+            "example": "测试学生004"
+          },
+          "role": {
+            "type": "string",
+            "example": "student"
+          },
+          "teacherId": {
+            "type": "integer",
+            "nullable": true,
+            "example": null
+          },
+          "studentId": {
+            "type": "integer",
+            "nullable": true,
+            "example": 3
+          },
+          "enabled": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "RegisterStudentResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/AuthUser"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "example": "eyJhbGciOiJIUzI1NiIs..."
+              },
+              "user": {
+                "$ref": "#/components/schemas/AuthUser"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "参数错误"
+              },
+              "details": {
+                "nullable": true,
+                "description": "??????????????????"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      }
+    }
+  }
+}

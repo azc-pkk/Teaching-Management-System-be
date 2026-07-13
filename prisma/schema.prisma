@@ -1,0 +1,380 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  ADMIN
+  ACADEMIC
+  DEPARTMENT_ADMIN
+  RESEARCH_DIRECTOR
+  TEACHER
+  STUDENT
+  TEXTBOOK_ADMIN
+  LEADER
+}
+
+enum ClassroomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum StudentStatus {
+  ENROLLED
+  SUSPENDED
+  GRADUATED
+  WITHDRAWN
+}
+
+enum WorkflowStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum TextbookOrderStatus {
+  PENDING
+  APPROVED
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+enum GraduationResult {
+  PENDING
+  PASSED
+  FAILED
+  REVIEW_REQUIRED
+}
+
+enum TeachingLogStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
+  RETURN
+  CANCEL
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  name         String   @map("real_name") @db.VarChar(50)
+  role         UserRole
+  teacherId    Int?     @unique @map("teacher_id")
+  studentId    Int?     @unique @map("student_id")
+  enabled      Boolean  @default(true)
+
+  teacher           Teacher?           @relation("UserTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  student           Student?           @relation("UserStudent", fields: [studentId], references: [id], onDelete: SetNull)
+  classroomRequests ClassroomRequest[] @relation("RequestApplicant")
+  approvalRecords   ApprovalRecord[]   @relation("ApprovalOperator")
+  operationLogs     OperationLog[]
+
+  @@map("sys_user")
+}
+
+model Department {
+  id        Int     @id @default(autoincrement())
+  name      String  @db.VarChar(100)
+  code      String  @unique @db.VarChar(30)
+  parentId  Int?    @map("parent_id")
+  type      String? @db.VarChar(30)
+  managerId Int?    @map("manager_id")
+
+  parent      Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Department[] @relation("DepartmentHierarchy")
+  manager     Teacher?     @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  majors      Major[]
+  classGroups ClassGroup[]
+  teachers    Teacher[]    @relation("TeacherDepartment")
+  courses     Course[]
+
+  @@index([parentId])
+  @@index([managerId])
+  @@map("department")
+}
+
+model Major {
+  id            Int    @id @default(autoincrement())
+  name          String @db.VarChar(100)
+  code          String @unique @db.VarChar(30)
+  departmentId  Int    @map("department_id")
+  durationYears Int    @map("duration_years")
+
+  department  Department   @relation(fields: [departmentId], references: [id])
+  classGroups ClassGroup[]
+
+  @@index([departmentId])
+  @@map("major")
+}
+
+model ClassGroup {
+  id           Int    @id @default(autoincrement())
+  name         String @db.VarChar(100)
+  grade        Int
+  majorId      Int    @map("major_id")
+  departmentId Int    @map("department_id")
+  counselorId  Int?   @map("counselor_id")
+  studentCount Int    @default(0) @map("student_count")
+
+  major           Major            @relation(fields: [majorId], references: [id])
+  department      Department       @relation(fields: [departmentId], references: [id])
+  counselor       Teacher?         @relation("ClassCounselor", fields: [counselorId], references: [id], onDelete: SetNull)
+  students        Student[]
+  exams           Exam[]
+  scheduleChanges ScheduleChange[]
+  teachingLogs    TeachingLog[]
+
+  @@index([majorId])
+  @@index([departmentId])
+  @@index([counselorId])
+  @@map("class_group")
+}
+
+model Teacher {
+  id           Int     @id @default(autoincrement())
+  employeeNo   String  @unique @map("teacher_no") @db.VarChar(30)
+  name         String  @map("teacher_name") @db.VarChar(50)
+  departmentId Int?    @map("department_id")
+  teacherType  String? @map("teacher_type") @db.VarChar(30)
+  title        String? @db.VarChar(50)
+  phone        String? @db.VarChar(20)
+
+  department         Department?      @relation("TeacherDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  user               User?            @relation("UserTeacher")
+  managedDepartments Department[]     @relation("DepartmentManager")
+  counseledClasses   ClassGroup[]     @relation("ClassCounselor")
+  directedCourses    Course[]         @relation("CourseDirector")
+  invigilatedExams   Exam[]           @relation("ExamInvigilator")
+  scheduleChanges    ScheduleChange[]
+  teachingLogs       TeachingLog[]
+
+  @@index([departmentId])
+  @@map("teacher")
+}
+
+model Student {
+  id           Int           @id @default(autoincrement())
+  studentNo    String        @unique @map("student_no") @db.VarChar(30)
+  name         String        @db.VarChar(50)
+  classGroupId Int           @map("class_group_id")
+  grade        Int
+  status       StudentStatus @default(ENROLLED)
+  phone        String?       @db.VarChar(20)
+
+  classGroup        ClassGroup         @relation(fields: [classGroupId], references: [id])
+  user              User?              @relation("UserStudent")
+  graduationReviews GraduationReview[]
+
+  @@index([classGroupId])
+  @@map("student")
+}
+
+model Course {
+  id           Int     @id @default(autoincrement())
+  code         String  @unique @map("course_code") @db.VarChar(30)
+  name         String  @map("course_name") @db.VarChar(100)
+  credits      Decimal @map("credit") @db.Decimal(4, 1)
+  courseType   String? @map("course_type") @db.VarChar(30)
+  departmentId Int?    @map("department_id")
+  directorId   Int?    @map("leader_teacher_id")
+
+  department      Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  director        Teacher?         @relation("CourseDirector", fields: [directorId], references: [id], onDelete: SetNull)
+  exams           Exam[]
+  textbookOrders  TextbookOrder[]
+  scheduleChanges ScheduleChange[]
+  teachingLogs    TeachingLog[]
+
+  @@index([departmentId])
+  @@index([directorId])
+  @@map("course")
+}
+
+model Classroom {
+  id       Int             @id @default(autoincrement())
+  campus   String?         @db.VarChar(100)
+  building String?         @db.VarChar(100)
+  roomNo   String          @unique @map("room_code") @db.VarChar(30)
+  type     String?         @map("room_type") @db.VarChar(30)
+  capacity Int
+  area     Decimal?        @db.Decimal(8, 2)
+  status   ClassroomStatus @default(AVAILABLE)
+
+  exams    Exam[]
+  requests ClassroomRequest[]
+
+  @@map("classroom")
+}
+
+model Exam {
+  id            Int      @id @default(autoincrement())
+  semesterId    Int      @map("semester_id")
+  courseId      Int      @map("course_id")
+  classGroupId  Int      @map("class_group_id")
+  classroomId   Int      @map("classroom_id")
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  invigilatorId Int?     @map("invigilator_id")
+
+  course      Course     @relation(fields: [courseId], references: [id])
+  classGroup  ClassGroup @relation(fields: [classGroupId], references: [id])
+  classroom   Classroom  @relation(fields: [classroomId], references: [id])
+  invigilator Teacher?   @relation("ExamInvigilator", fields: [invigilatorId], references: [id], onDelete: SetNull)
+
+  @@index([semesterId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@index([classroomId])
+  @@index([invigilatorId])
+  @@map("exam")
+}
+
+model Textbook {
+  id        Int     @id @default(autoincrement())
+  isbn      String  @unique @db.VarChar(30)
+  name      String  @db.VarChar(150)
+  author    String? @db.VarChar(100)
+  publisher String? @db.VarChar(150)
+  price     Decimal @db.Decimal(10, 2)
+
+  orders TextbookOrder[]
+
+  @@map("textbook")
+}
+
+model TextbookOrder {
+  id         Int                 @id @default(autoincrement())
+  semesterId Int                 @map("semester_id")
+  courseId   Int                 @map("course_id")
+  textbookId Int                 @map("textbook_id")
+  quantity   Int
+  status     TextbookOrderStatus @default(PENDING)
+
+  course   Course   @relation(fields: [courseId], references: [id])
+  textbook Textbook @relation(fields: [textbookId], references: [id])
+
+  @@index([semesterId])
+  @@index([courseId])
+  @@index([textbookId])
+  @@map("textbook_order")
+}
+
+model ClassroomRequest {
+  id          Int            @id @default(autoincrement())
+  applicantId Int            @map("applicant_id")
+  classroomId Int            @map("classroom_id")
+  startTime   DateTime       @map("start_time")
+  endTime     DateTime       @map("end_time")
+  purpose     String         @db.VarChar(255)
+  status      WorkflowStatus @default(PENDING)
+
+  applicant User      @relation("RequestApplicant", fields: [applicantId], references: [id])
+  classroom Classroom @relation(fields: [classroomId], references: [id])
+
+  @@index([applicantId])
+  @@index([classroomId])
+  @@map("classroom_request")
+}
+
+model ScheduleChange {
+  id           Int            @id @default(autoincrement())
+  teacherId    Int            @map("teacher_id")
+  courseId     Int            @map("course_id")
+  classGroupId Int            @map("class_group_id")
+  hours        Decimal        @db.Decimal(5, 1)
+  reason       String         @db.VarChar(500)
+  status       WorkflowStatus @default(PENDING)
+
+  teacher    Teacher    @relation(fields: [teacherId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
+
+  @@index([teacherId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@map("schedule_change")
+}
+
+model GraduationReview {
+  id                      Int              @id @default(autoincrement())
+  studentId               Int              @map("student_id")
+  semesterId              Int              @map("semester_id")
+  totalCredits            Decimal          @map("total_credits") @db.Decimal(6, 1)
+  hasFailedRequiredCourse Boolean          @default(false) @map("has_failed_required_course")
+  result                  GraduationResult @default(PENDING)
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, semesterId])
+  @@index([semesterId])
+  @@map("graduation_review")
+}
+
+model TeachingLog {
+  id                Int               @id @default(autoincrement())
+  teacherId         Int               @map("teacher_id")
+  courseId          Int               @map("course_id")
+  classGroupId      Int               @map("class_group_id")
+  lessonDate        DateTime          @map("lesson_date") @db.Date
+  content           String            @db.Text
+  attendanceSummary String?           @map("attendance_summary") @db.Text
+  status            TeachingLogStatus @default(DRAFT)
+
+  teacher    Teacher    @relation(fields: [teacherId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
+
+  @@index([teacherId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@map("teaching_log")
+}
+
+model ApprovalRecord {
+  id           Int            @id @default(autoincrement())
+  businessType String         @map("business_type") @db.VarChar(50)
+  businessId   Int            @map("business_id")
+  operatorId   Int            @map("operator_id")
+  action       ApprovalAction
+  comment      String?        @db.VarChar(500)
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  operator User @relation("ApprovalOperator", fields: [operatorId], references: [id])
+
+  @@index([businessType, businessId])
+  @@index([operatorId])
+  @@map("approval_record")
+}
+
+model OperationLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  module    String   @db.VarChar(50)
+  action    String   @db.VarChar(100)
+  targetId  Int?     @map("target_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([module, targetId])
+  @@map("operation_log")
+}

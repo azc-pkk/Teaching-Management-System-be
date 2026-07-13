@@ -1,0 +1,681 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "教学过程管理系统 - 教室管理 API",
+    "version": "1.0.0",
+    "description": "用于导入 Apifox 的教室管理接口，包含教室列表、下拉选项、详情、新增、修改和删除。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "本地后端服务"
+    }
+  ],
+  "tags": [
+    {
+      "name": "教室管理"
+    }
+  ],
+  "paths": {
+    "/classrooms": {
+      "get": {
+        "tags": [
+          "教室管理"
+        ],
+        "summary": "查询教室列表",
+        "description": "分页查询教室基础信息，支持关键字、校区、楼栋、类型和状态筛选。",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "搜索校区、楼栋、教室号、类型",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campus",
+            "in": "query",
+            "description": "校区",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "building",
+            "in": "query",
+            "description": "楼栋",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "教室类型",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "教室状态",
+            "schema": {
+              "$ref": "#/components/schemas/ClassroomStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomPageResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "list": [
+                      {
+                        "id": 1,
+                        "campus": "主校区",
+                        "building": "第一教学楼",
+                        "roomNo": "A101",
+                        "type": "多媒体教室",
+                        "capacity": 80,
+                        "area": 120,
+                        "status": "AVAILABLE"
+                      }
+                    ],
+                    "page": 1,
+                    "pageSize": 10,
+                    "total": 1
+                  },
+                  "error": null
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "教室管理"
+        ],
+        "summary": "新增教室",
+        "description": "新增一条教室基础数据，教室号 roomNo 必须唯一。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClassroomRequest"
+              },
+              "example": {
+                "campus": "主校区",
+                "building": "第一教学楼",
+                "roomNo": "A101",
+                "type": "多媒体教室",
+                "capacity": 80,
+                "area": 120,
+                "status": "AVAILABLE"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/classrooms/options": {
+      "get": {
+        "tags": [
+          "教室管理"
+        ],
+        "summary": "查询教室管理下拉选项",
+        "description": "用于教室管理页面初始化筛选项和表单下拉项，返回校区、楼栋、教室类型和状态列表。",
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomOptionsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "campuses": [
+                      "主校区",
+                      "新校区"
+                    ],
+                    "buildings": [
+                      "第一教学楼",
+                      "实验楼"
+                    ],
+                    "types": [
+                      "多媒体教室",
+                      "普通教室",
+                      "计算机实验室"
+                    ],
+                    "statuses": [
+                      "AVAILABLE",
+                      "OCCUPIED",
+                      "MAINTENANCE"
+                    ]
+                  },
+                  "error": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classrooms/{id}": {
+      "get": {
+        "tags": [
+          "教室管理"
+        ],
+        "summary": "查询教室详情",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "教室管理"
+        ],
+        "summary": "修改教室",
+        "description": "修改教室基础信息，Body 可以只传需要修改的字段。",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClassroomRequest"
+              },
+              "example": {
+                "capacity": 100,
+                "status": "MAINTENANCE"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "教室管理"
+        ],
+        "summary": "删除教室",
+        "description": "删除未被考试或教室申请引用的教室。已被业务数据引用时返回 409。",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DeleteSuccess"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        },
+        "description": "教室 ID"
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1
+        },
+        "description": "页码"
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1
+        },
+        "description": "每页数量"
+      }
+    },
+    "responses": {
+      "DeleteSuccess": {
+        "description": "删除成功",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/DeleteResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "业务冲突",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "success": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "Room number already exists"
+              },
+              "data": null
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ClassroomStatus": {
+        "type": "string",
+        "enum": [
+          "AVAILABLE",
+          "OCCUPIED",
+          "MAINTENANCE"
+        ],
+        "example": "AVAILABLE"
+      },
+      "Classroom": {
+        "type": "object",
+        "required": [
+          "id",
+          "roomNo",
+          "capacity",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "campus": {
+            "type": "string",
+            "nullable": true,
+            "example": "主校区"
+          },
+          "building": {
+            "type": "string",
+            "nullable": true,
+            "example": "第一教学楼"
+          },
+          "roomNo": {
+            "type": "string",
+            "example": "A101"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "example": "多媒体教室"
+          },
+          "capacity": {
+            "type": "integer",
+            "example": 80
+          },
+          "area": {
+            "type": "number",
+            "nullable": true,
+            "example": 120
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassroomStatus"
+          }
+        }
+      },
+      "CreateClassroomRequest": {
+        "type": "object",
+        "required": [
+          "roomNo",
+          "capacity"
+        ],
+        "properties": {
+          "campus": {
+            "type": "string",
+            "example": "主校区"
+          },
+          "building": {
+            "type": "string",
+            "example": "第一教学楼"
+          },
+          "roomNo": {
+            "type": "string",
+            "example": "A101"
+          },
+          "type": {
+            "type": "string",
+            "example": "多媒体教室"
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 80
+          },
+          "area": {
+            "type": "number",
+            "minimum": 0,
+            "example": 120
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassroomStatus"
+          }
+        }
+      },
+      "UpdateClassroomRequest": {
+        "type": "object",
+        "properties": {
+          "campus": {
+            "type": "string",
+            "example": "主校区"
+          },
+          "building": {
+            "type": "string",
+            "example": "第一教学楼"
+          },
+          "roomNo": {
+            "type": "string",
+            "example": "A101"
+          },
+          "type": {
+            "type": "string",
+            "example": "多媒体教室"
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 100
+          },
+          "area": {
+            "type": "number",
+            "minimum": 0,
+            "example": 120
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassroomStatus"
+          }
+        }
+      },
+      "ClassroomResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Classroom"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "ClassroomPageResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "list": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "example": 1
+              },
+              "pageSize": {
+                "type": "integer",
+                "example": 10
+              },
+              "total": {
+                "type": "integer",
+                "example": 15
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "ClassroomOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "campuses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "主校区"
+                }
+              },
+              "buildings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "第一教学楼"
+                }
+              },
+              "types": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "多媒体教室"
+                }
+              },
+              "statuses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ClassroomStatus"
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "deleted": {
+                "type": "boolean",
+                "example": true
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "参数错误"
+              },
+              "details": {
+                "nullable": true,
+                "description": "??????????????????"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,1208 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "教学过程管理系统 - 教师与学生管理 API",
+    "version": "1.0.0",
+    "description": "用于导入 Apifox 的教师管理、学生管理接口设计。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "本地后端服务"
+    }
+  ],
+  "tags": [
+    {
+      "name": "教师管理"
+    },
+    {
+      "name": "学生管理"
+    },
+    {
+      "name": "基础数据"
+    }
+  ],
+  "paths": {
+    "/teachers": {
+      "get": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "查询教师列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "按教师工号、姓名搜索"
+          },
+          {
+            "name": "departmentId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "院系 ID"
+          },
+          {
+            "name": "teacherType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "教师类型"
+          },
+          {
+            "name": "title",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "职称"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherPageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "新增教师",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeacherRequest"
+              },
+              "example": {
+                "employeeNo": "T0100",
+                "name": "李老师",
+                "departmentId": 2,
+                "teacherType": "专任教师",
+                "title": "讲师",
+                "phone": "13800001000"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/teachers/{id}": {
+      "get": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "查询教师详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "修改教师",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "删除教师",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DeleteSuccess"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/students": {
+      "get": {
+        "tags": [
+          "学生管理"
+        ],
+        "summary": "查询学生列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "按学号、姓名搜索"
+          },
+          {
+            "name": "classGroupId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "班级 ID"
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "年级"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/StudentStatus"
+            },
+            "description": "学籍状态"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentPageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "学生管理"
+        ],
+        "summary": "新增学生",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStudentRequest"
+              },
+              "example": {
+                "studentNo": "S20260100",
+                "name": "赵同学",
+                "classGroupId": 1,
+                "grade": 2026,
+                "status": "ENROLLED",
+                "phone": "13900000100"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/students/{id}": {
+      "get": {
+        "tags": [
+          "学生管理"
+        ],
+        "summary": "查询学生详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "学生管理"
+        ],
+        "summary": "修改学生",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStudentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "学生管理"
+        ],
+        "summary": "删除学生",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DeleteSuccess"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/base-data/departments": {
+      "get": {
+        "tags": [
+          "基础数据"
+        ],
+        "summary": "查询院系列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/base-data/class-groups": {
+      "get": {
+        "tags": [
+          "基础数据"
+        ],
+        "summary": "查询班级列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "departmentId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "majorId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassGroupListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teachers/options": {
+      "get": {
+        "tags": [
+          "教师管理"
+        ],
+        "summary": "查询教师管理下拉选项",
+        "description": "用于教师管理页面初始化下拉数据，返回院系列表、教师职称列表和教师类型列表。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherOptionsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "departments": [
+                      {
+                        "id": 1,
+                        "name": "信息工程学院"
+                      },
+                      {
+                        "id": 2,
+                        "name": "计算机系"
+                      }
+                    ],
+                    "titles": [
+                      "副教授",
+                      "教授",
+                      "讲师"
+                    ],
+                    "teacherTypes": [
+                      "专任教师",
+                      "外聘教师"
+                    ]
+                  },
+                  "error": null
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1
+        }
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "responses": {
+      "DeleteSuccess": {
+        "description": "删除成功",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/DeleteResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "业务冲突",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Teacher": {
+        "type": "object",
+        "required": [
+          "id",
+          "employeeNo",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "employeeNo": {
+            "type": "string",
+            "example": "T0001"
+          },
+          "name": {
+            "type": "string",
+            "example": "张伟"
+          },
+          "departmentId": {
+            "type": "integer",
+            "nullable": true,
+            "example": 2
+          },
+          "departmentName": {
+            "type": "string",
+            "nullable": true,
+            "example": "计算机系"
+          },
+          "teacherType": {
+            "type": "string",
+            "nullable": true,
+            "example": "专任教师"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true,
+            "example": "副教授"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "13800000001"
+          }
+        }
+      },
+      "Student": {
+        "type": "object",
+        "required": [
+          "id",
+          "studentNo",
+          "name",
+          "classGroupId",
+          "grade",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "studentNo": {
+            "type": "string",
+            "example": "S20260001"
+          },
+          "name": {
+            "type": "string",
+            "example": "王同学"
+          },
+          "classGroupId": {
+            "type": "integer",
+            "example": 1
+          },
+          "classGroupName": {
+            "type": "string",
+            "example": "软件工程 2601 班"
+          },
+          "grade": {
+            "type": "integer",
+            "example": 2026
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentStatus"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "13900000001"
+          }
+        }
+      },
+      "StudentStatus": {
+        "type": "string",
+        "enum": [
+          "ENROLLED",
+          "SUSPENDED",
+          "GRADUATED",
+          "WITHDRAWN"
+        ],
+        "example": "ENROLLED"
+      },
+      "CreateTeacherRequest": {
+        "type": "object",
+        "required": [
+          "employeeNo",
+          "name"
+        ],
+        "properties": {
+          "employeeNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "departmentId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "teacherType": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateTeacherRequest": {
+        "type": "object",
+        "properties": {
+          "employeeNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "departmentId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "teacherType": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CreateStudentRequest": {
+        "type": "object",
+        "required": [
+          "studentNo",
+          "name",
+          "classGroupId",
+          "grade",
+          "status"
+        ],
+        "properties": {
+          "studentNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "classGroupId": {
+            "type": "integer"
+          },
+          "grade": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentStatus"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateStudentRequest": {
+        "type": "object",
+        "properties": {
+          "studentNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "classGroupId": {
+            "type": "integer"
+          },
+          "grade": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentStatus"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Department": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "ClassGroup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "integer"
+          },
+          "majorId": {
+            "type": "integer"
+          },
+          "majorName": {
+            "type": "string"
+          },
+          "departmentId": {
+            "type": "integer"
+          },
+          "departmentName": {
+            "type": "string"
+          }
+        }
+      },
+      "TeacherResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Teacher"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "StudentResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Student"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "TeacherPageResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "list": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Teacher"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "example": 1
+              },
+              "pageSize": {
+                "type": "integer",
+                "example": 10
+              },
+              "total": {
+                "type": "integer",
+                "example": 1
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "StudentPageResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "list": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Student"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "example": 1
+              },
+              "pageSize": {
+                "type": "integer",
+                "example": 10
+              },
+              "total": {
+                "type": "integer",
+                "example": 1
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "DepartmentListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Department"
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "ClassGroupListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClassGroup"
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "deleted": {
+                "type": "boolean",
+                "example": true
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string",
+                "example": "参数错误"
+              },
+              "details": {
+                "nullable": true,
+                "description": "??????????????????"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "TeacherOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "信息工程学院"
+                    }
+                  }
+                }
+              },
+              "titles": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "讲师"
+                }
+              },
+              "teacherTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "example": "专任教师"
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      }
+    }
+  }
+}
