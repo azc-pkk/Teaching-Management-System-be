@@ -24,13 +24,8 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { username: loginDto.username },
-      include: {
-        teacher: true,
-        student: true,
-      },
-    });
+    const username = loginDto.username.trim();
+    let user = await this.findLoginUser(username);
 
     if (!user || !user.enabled) {
       return this.loginFailed();
@@ -40,21 +35,59 @@ export class AuthService {
       return this.loginFailed();
     }
 
-    return {
-      success: true,
-      data: {
-        token: this.createDemoToken(user.id, user.username, user.role),
-        user: {
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          role: user.role.toLowerCase(),
-          teacherId: user.teacher?.id ?? null,
-          studentId: user.student?.id ?? null,
-          enabled: user.enabled,
+    if (user.username !== username) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { username },
+        include: {
+          teacher: true,
+          student: true,
         },
+      });
+    }
+
+    return {
+      token: this.createDemoToken(user.id, user.username, user.role),
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role.toLowerCase(),
+        teacherId: user.teacher?.id ?? null,
+        studentId: user.student?.id ?? null,
+        enabled: user.enabled,
       },
     };
+  }
+
+  private async findLoginUser(username: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+      include: {
+        teacher: true,
+        student: true,
+      },
+    });
+
+    if (user) {
+      return user;
+    }
+
+    const student = await this.prisma.student.findUnique({
+      where: { studentNo: username },
+      select: {
+        user: {
+          include: {
+            teacher: true,
+            student: true,
+          },
+        },
+      },
+    });
+
+    return student?.user && /^\d+$/.test(student.user.username)
+      ? student.user
+      : null;
   }
 
   async registerStudent(registerDto: RegisterStudentDto) {
@@ -106,12 +139,7 @@ export class AuthService {
       },
     });
 
-    return {
-      success: true,
-      data: {
-        user: this.toLoginUser(user),
-      },
-    };
+    return { user: this.toLoginUser(user) };
   }
 
   private verifyPassword(password: string, passwordHash: string) {
@@ -140,16 +168,17 @@ export class AuthService {
     return `scrypt$${salt}$${hash}`;
   }
 
-  private loginFailed() {
+  private loginFailed(): never {
     throw new UnauthorizedException('Invalid username or password');
   }
 
   private createDemoToken(userId: number, username: string, role: string) {
-    const secret = this.configService.get<string>('JWT_SECRET') ?? 'demo-secret';
+    const secret =
+      this.configService.get<string>('JWT_SECRET') ?? 'demo-secret';
     const issuedAt = Math.floor(Date.now() / 1000);
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString(
-      'base64url',
-    );
+    const header = Buffer.from(
+      JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
+    ).toString('base64url');
     const payload = Buffer.from(
       JSON.stringify({
         sub: String(userId),

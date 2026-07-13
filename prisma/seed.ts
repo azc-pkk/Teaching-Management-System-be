@@ -39,6 +39,102 @@ const adapter = new PrismaMariaDb({
 
 const prisma = new PrismaClient({ adapter });
 const defaultPassword = process.env.SEED_DEFAULT_PASSWORD ?? 'TmsSeed#2026!';
+const seedCollegeCode = '01';
+
+function studentNoPart(value: string | number, length: number, label: string) {
+  const part = String(value);
+
+  if (!/^\d+$/.test(part) || part.length > length) {
+    throw new Error(`${label} must be at most ${length} digits: ${part}`);
+  }
+
+  return part.padStart(length, '0');
+}
+
+function buildStudentNo(
+  grade: number,
+  majorCode: string,
+  classCode: string,
+  withinClassNo: number,
+) {
+  return [
+    studentNoPart(grade, 4, 'grade'),
+    studentNoPart(seedCollegeCode, 2, 'collegeCode'),
+    studentNoPart(majorCode, 2, 'majorCode'),
+    studentNoPart(classCode, 2, 'classCode'),
+    studentNoPart(withinClassNo, 2, 'withinClassNo'),
+  ].join('');
+}
+
+type SeedStudentInput = {
+  legacyStudentNo: string;
+  studentNo: string;
+  name: string;
+  classGroupId: number;
+  grade: number;
+  status: StudentStatus;
+  phone: string;
+};
+
+async function upsertSeedStudent(input: SeedStudentInput) {
+  const { legacyStudentNo, ...data } = input;
+  const existing = await prisma.student.findUnique({
+    where: { studentNo: data.studentNo },
+  });
+
+  if (existing) {
+    return updateSeedStudent(existing.id, legacyStudentNo, data);
+  }
+
+  const legacy = await prisma.student.findUnique({
+    where: { studentNo: legacyStudentNo },
+  });
+
+  if (legacy) {
+    return updateSeedStudent(legacy.id, legacyStudentNo, data);
+  }
+
+  return prisma.student.create({ data });
+}
+
+async function updateSeedStudent(
+  studentId: number,
+  legacyStudentNo: string,
+  data: Omit<SeedStudentInput, 'legacyStudentNo'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { studentId },
+      select: { id: true, username: true },
+    });
+
+    if (
+      user &&
+      (user.username === legacyStudentNo || user.username === data.studentNo)
+    ) {
+      const usernameOwner = await tx.user.findUnique({
+        where: { username: data.studentNo },
+        select: { id: true },
+      });
+
+      if (usernameOwner && usernameOwner.id !== user.id) {
+        throw new Error(
+          `Cannot migrate ${legacyStudentNo}: username ${data.studentNo} is already used`,
+        );
+      }
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          username: data.studentNo,
+          name: data.name,
+        },
+      });
+    }
+
+    return tx.student.update({ where: { id: studentId }, data });
+  });
+}
 
 async function main() {
   console.log('开始写入教学过程管理系统测试数据...');
@@ -55,13 +151,23 @@ async function main() {
   const computerDepartment = await prisma.department.upsert({
     where: { code: 'D002' },
     update: { name: '计算机系', type: 'DEPARTMENT', parentId: college.id },
-    create: { code: 'D002', name: '计算机系', type: 'DEPARTMENT', parentId: college.id },
+    create: {
+      code: 'D002',
+      name: '计算机系',
+      type: 'DEPARTMENT',
+      parentId: college.id,
+    },
   });
 
   const softwareDepartment = await prisma.department.upsert({
     where: { code: 'D003' },
     update: { name: '软件工程系', type: 'DEPARTMENT', parentId: college.id },
-    create: { code: 'D003', name: '软件工程系', type: 'DEPARTMENT', parentId: college.id },
+    create: {
+      code: 'D003',
+      name: '软件工程系',
+      type: 'DEPARTMENT',
+      parentId: college.id,
+    },
   });
 
   const teacher1 = await prisma.teacher.upsert({
@@ -160,24 +266,53 @@ async function main() {
   });
 
   await Promise.all([
-    prisma.department.update({ where: { id: college.id }, data: { managerId: teacher5.id } }),
-    prisma.department.update({ where: { id: computerDepartment.id }, data: { managerId: teacher1.id } }),
-    prisma.department.update({ where: { id: softwareDepartment.id }, data: { managerId: teacher2.id } }),
+    prisma.department.update({
+      where: { id: college.id },
+      data: { managerId: teacher5.id },
+    }),
+    prisma.department.update({
+      where: { id: computerDepartment.id },
+      data: { managerId: teacher1.id },
+    }),
+    prisma.department.update({
+      where: { id: softwareDepartment.id },
+      data: { managerId: teacher2.id },
+    }),
   ]);
 
   const computerMajor = await prisma.major.upsert({
     where: { code: 'CS' },
-    update: { name: '计算机科学与技术', departmentId: computerDepartment.id, durationYears: 4 },
-    create: { code: 'CS', name: '计算机科学与技术', departmentId: computerDepartment.id, durationYears: 4 },
+    update: {
+      name: '计算机科学与技术',
+      departmentId: computerDepartment.id,
+      durationYears: 4,
+    },
+    create: {
+      code: 'CS',
+      name: '计算机科学与技术',
+      departmentId: computerDepartment.id,
+      durationYears: 4,
+    },
   });
 
   const softwareMajor = await prisma.major.upsert({
     where: { code: 'SE' },
-    update: { name: '软件工程', departmentId: softwareDepartment.id, durationYears: 4 },
-    create: { code: 'SE', name: '软件工程', departmentId: softwareDepartment.id, durationYears: 4 },
+    update: {
+      name: '软件工程',
+      departmentId: softwareDepartment.id,
+      durationYears: 4,
+    },
+    create: {
+      code: 'SE',
+      name: '软件工程',
+      departmentId: softwareDepartment.id,
+      durationYears: 4,
+    },
   });
 
-  const computerClassExisting = await prisma.classGroup.findFirst({ where: { name: '计算机2301班' } });
+  const computerClassExisting = await prisma.classGroup.findFirst({
+    where: { name: '计算机2301班' },
+  });
   const computerClass = computerClassExisting
     ? await prisma.classGroup.update({
         where: { id: computerClassExisting.id },
@@ -200,7 +335,9 @@ async function main() {
         },
       });
 
-  const softwareClassExisting = await prisma.classGroup.findFirst({ where: { name: '软件工程2301班' } });
+  const softwareClassExisting = await prisma.classGroup.findFirst({
+    where: { name: '软件工程2301班' },
+  });
   const softwareClass = softwareClassExisting
     ? await prisma.classGroup.update({
         where: { id: softwareClassExisting.id },
@@ -224,47 +361,104 @@ async function main() {
       });
 
   const students = await Promise.all([
-    prisma.student.upsert({
-      where: { studentNo: '20230001' },
-      update: { name: '测试学生001', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000001' },
-      create: { studentNo: '20230001', name: '测试学生001', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000001' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230001',
+      studentNo: buildStudentNo(2023, '01', '01', 1),
+      name: '测试学生001',
+      classGroupId: computerClass.id,
+      grade: 2023,
+      status: StudentStatus.ENROLLED,
+      phone: '13900000001',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230002' },
-      update: { name: '测试学生002', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000002' },
-      create: { studentNo: '20230002', name: '测试学生002', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000002' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230002',
+      studentNo: buildStudentNo(2023, '01', '01', 2),
+      name: '测试学生002',
+      classGroupId: computerClass.id,
+      grade: 2023,
+      status: StudentStatus.ENROLLED,
+      phone: '13900000002',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230003' },
-      update: { name: '测试学生003', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.SUSPENDED, phone: '13900000003' },
-      create: { studentNo: '20230003', name: '测试学生003', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.SUSPENDED, phone: '13900000003' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230003',
+      studentNo: buildStudentNo(2023, '01', '01', 3),
+      name: '测试学生003',
+      classGroupId: computerClass.id,
+      grade: 2023,
+      status: StudentStatus.SUSPENDED,
+      phone: '13900000003',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230004' },
-      update: { name: '测试学生004', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000004' },
-      create: { studentNo: '20230004', name: '测试学生004', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000004' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230004',
+      studentNo: buildStudentNo(2023, '02', '01', 1),
+      name: '测试学生004',
+      classGroupId: softwareClass.id,
+      grade: 2023,
+      status: StudentStatus.ENROLLED,
+      phone: '13900000004',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230005' },
-      update: { name: '测试学生005', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000005' },
-      create: { studentNo: '20230005', name: '测试学生005', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000005' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230005',
+      studentNo: buildStudentNo(2023, '02', '01', 2),
+      name: '测试学生005',
+      classGroupId: softwareClass.id,
+      grade: 2023,
+      status: StudentStatus.ENROLLED,
+      phone: '13900000005',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230006' },
-      update: { name: '测试学生006', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.GRADUATED, phone: '13900000006' },
-      create: { studentNo: '20230006', name: '测试学生006', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.GRADUATED, phone: '13900000006' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230006',
+      studentNo: buildStudentNo(2023, '02', '01', 3),
+      name: '测试学生006',
+      classGroupId: softwareClass.id,
+      grade: 2023,
+      status: StudentStatus.GRADUATED,
+      phone: '13900000006',
     }),
   ]);
 
   const userInputs = [
     { username: 'admin', name: '系统管理员', role: UserRole.ADMIN },
-    { username: 'academic_admin', name: '教务处管理员', role: UserRole.ACADEMIC },
-    { username: 'department_admin', name: '系部管理员', role: UserRole.DEPARTMENT_ADMIN, teacherId: teacher1.id },
-    { username: 'research_director', name: '教研室主任', role: UserRole.RESEARCH_DIRECTOR, teacherId: teacher2.id },
-    { username: 'teacher', name: '授课教师', role: UserRole.TEACHER, teacherId: teacher3.id },
-    { username: 'student', name: '在校学生', role: UserRole.STUDENT, studentId: students[0]!.id },
-    { username: 'textbook_admin', name: '教材管理员', role: UserRole.TEXTBOOK_ADMIN },
-    { username: 'leader', name: '学院领导', role: UserRole.LEADER, teacherId: teacher5.id },
+    {
+      username: 'academic_admin',
+      name: '教务处管理员',
+      role: UserRole.ACADEMIC,
+    },
+    {
+      username: 'department_admin',
+      name: '系部管理员',
+      role: UserRole.DEPARTMENT_ADMIN,
+      teacherId: teacher1.id,
+    },
+    {
+      username: 'research_director',
+      name: '教研室主任',
+      role: UserRole.RESEARCH_DIRECTOR,
+      teacherId: teacher2.id,
+    },
+    {
+      username: 'teacher',
+      name: '授课教师',
+      role: UserRole.TEACHER,
+      teacherId: teacher3.id,
+    },
+    {
+      username: 'student',
+      name: '在校学生',
+      role: UserRole.STUDENT,
+      studentId: students[0]!.id,
+    },
+    {
+      username: 'textbook_admin',
+      name: '教材管理员',
+      role: UserRole.TEXTBOOK_ADMIN,
+    },
+    {
+      username: 'leader',
+      name: '学院领导',
+      role: UserRole.LEADER,
+      teacherId: teacher5.id,
+    },
   ] as const;
 
   const users = [];
@@ -298,48 +492,141 @@ async function main() {
 
   const classroom1 = await prisma.classroom.upsert({
     where: { roomNo: 'A101' },
-    update: { campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
-    create: { roomNo: 'A101', campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
+    update: {
+      campus: '主校区',
+      building: '第一教学楼',
+      type: '多媒体教室',
+      capacity: 60,
+      area: 85,
+      status: ClassroomStatus.AVAILABLE,
+    },
+    create: {
+      roomNo: 'A101',
+      campus: '主校区',
+      building: '第一教学楼',
+      type: '多媒体教室',
+      capacity: 60,
+      area: 85,
+      status: ClassroomStatus.AVAILABLE,
+    },
   });
 
   const classroom2 = await prisma.classroom.upsert({
     where: { roomNo: 'A102' },
-    update: { campus: '主校区', building: '第一教学楼', type: '普通教室', capacity: 45, area: 70, status: ClassroomStatus.AVAILABLE },
-    create: { roomNo: 'A102', campus: '主校区', building: '第一教学楼', type: '普通教室', capacity: 45, area: 70, status: ClassroomStatus.AVAILABLE },
+    update: {
+      campus: '主校区',
+      building: '第一教学楼',
+      type: '普通教室',
+      capacity: 45,
+      area: 70,
+      status: ClassroomStatus.AVAILABLE,
+    },
+    create: {
+      roomNo: 'A102',
+      campus: '主校区',
+      building: '第一教学楼',
+      type: '普通教室',
+      capacity: 45,
+      area: 70,
+      status: ClassroomStatus.AVAILABLE,
+    },
   });
 
   await prisma.classroom.upsert({
     where: { roomNo: 'B201' },
-    update: { campus: '主校区', building: '实验楼', type: '计算机实验室', capacity: 50, area: 100, status: ClassroomStatus.MAINTENANCE },
-    create: { roomNo: 'B201', campus: '主校区', building: '实验楼', type: '计算机实验室', capacity: 50, area: 100, status: ClassroomStatus.MAINTENANCE },
+    update: {
+      campus: '主校区',
+      building: '实验楼',
+      type: '计算机实验室',
+      capacity: 50,
+      area: 100,
+      status: ClassroomStatus.MAINTENANCE,
+    },
+    create: {
+      roomNo: 'B201',
+      campus: '主校区',
+      building: '实验楼',
+      type: '计算机实验室',
+      capacity: 50,
+      area: 100,
+      status: ClassroomStatus.MAINTENANCE,
+    },
   });
 
   const course1 = await prisma.course.upsert({
     where: { code: 'CS101' },
-    update: { name: '程序设计基础', credits: 3, courseType: '必修', departmentId: computerDepartment.id, directorId: teacher1.id },
-    create: { code: 'CS101', name: '程序设计基础', credits: 3, courseType: '必修', departmentId: computerDepartment.id, directorId: teacher1.id },
+    update: {
+      name: '程序设计基础',
+      credits: 3,
+      courseType: '必修',
+      departmentId: computerDepartment.id,
+      directorId: teacher1.id,
+    },
+    create: {
+      code: 'CS101',
+      name: '程序设计基础',
+      credits: 3,
+      courseType: '必修',
+      departmentId: computerDepartment.id,
+      directorId: teacher1.id,
+    },
   });
 
   const course2 = await prisma.course.upsert({
     where: { code: 'CS102' },
-    update: { name: '数据库原理', credits: 3.5, courseType: '必修', departmentId: computerDepartment.id, directorId: teacher2.id },
-    create: { code: 'CS102', name: '数据库原理', credits: 3.5, courseType: '必修', departmentId: computerDepartment.id, directorId: teacher2.id },
+    update: {
+      name: '数据库原理',
+      credits: 3.5,
+      courseType: '必修',
+      departmentId: computerDepartment.id,
+      directorId: teacher2.id,
+    },
+    create: {
+      code: 'CS102',
+      name: '数据库原理',
+      credits: 3.5,
+      courseType: '必修',
+      departmentId: computerDepartment.id,
+      directorId: teacher2.id,
+    },
   });
 
   const course3 = await prisma.course.upsert({
     where: { code: 'SE201' },
-    update: { name: '软件测试', credits: 2, courseType: '专业选修', departmentId: softwareDepartment.id, directorId: teacher4.id },
-    create: { code: 'SE201', name: '软件测试', credits: 2, courseType: '专业选修', departmentId: softwareDepartment.id, directorId: teacher4.id },
+    update: {
+      name: '软件测试',
+      credits: 2,
+      courseType: '专业选修',
+      departmentId: softwareDepartment.id,
+      directorId: teacher4.id,
+    },
+    create: {
+      code: 'SE201',
+      name: '软件测试',
+      credits: 2,
+      courseType: '专业选修',
+      departmentId: softwareDepartment.id,
+      directorId: teacher4.id,
+    },
   });
 
   const examStart = new Date('2026-07-01T09:00:00+08:00');
   const existingExam = await prisma.exam.findFirst({
-    where: { semesterId, courseId: course1.id, classGroupId: computerClass.id, startTime: examStart },
+    where: {
+      semesterId,
+      courseId: course1.id,
+      classGroupId: computerClass.id,
+      startTime: examStart,
+    },
   });
   const exam = existingExam
     ? await prisma.exam.update({
         where: { id: existingExam.id },
-        data: { classroomId: classroom1.id, endTime: new Date('2026-07-01T11:00:00+08:00'), invigilatorId: teacher3.id },
+        data: {
+          classroomId: classroom1.id,
+          endTime: new Date('2026-07-01T11:00:00+08:00'),
+          invigilatorId: teacher3.id,
+        },
       })
     : await prisma.exam.create({
         data: {
@@ -355,102 +642,262 @@ async function main() {
 
   const textbook1 = await prisma.textbook.upsert({
     where: { isbn: '9787300000001' },
-    update: { name: '程序设计基础教程', author: '张伟', publisher: '示例大学出版社', price: 49.8 },
-    create: { isbn: '9787300000001', name: '程序设计基础教程', author: '张伟', publisher: '示例大学出版社', price: 49.8 },
+    update: {
+      name: '程序设计基础教程',
+      author: '张伟',
+      publisher: '示例大学出版社',
+      price: 49.8,
+    },
+    create: {
+      isbn: '9787300000001',
+      name: '程序设计基础教程',
+      author: '张伟',
+      publisher: '示例大学出版社',
+      price: 49.8,
+    },
   });
 
   const textbook2 = await prisma.textbook.upsert({
     where: { isbn: '9787300000002' },
-    update: { name: '数据库系统原理', author: '李敏', publisher: '示例大学出版社', price: 58 },
-    create: { isbn: '9787300000002', name: '数据库系统原理', author: '李敏', publisher: '示例大学出版社', price: 58 },
+    update: {
+      name: '数据库系统原理',
+      author: '李敏',
+      publisher: '示例大学出版社',
+      price: 58,
+    },
+    create: {
+      isbn: '9787300000002',
+      name: '数据库系统原理',
+      author: '李敏',
+      publisher: '示例大学出版社',
+      price: 58,
+    },
   });
 
   const existingOrder = await prisma.textbookOrder.findFirst({
     where: { semesterId, courseId: course1.id, textbookId: textbook1.id },
   });
   if (existingOrder) {
-    await prisma.textbookOrder.update({ where: { id: existingOrder.id }, data: { quantity: 60, status: TextbookOrderStatus.APPROVED } });
+    await prisma.textbookOrder.update({
+      where: { id: existingOrder.id },
+      data: { quantity: 60, status: TextbookOrderStatus.APPROVED },
+    });
   } else {
-    await prisma.textbookOrder.create({ data: { semesterId, courseId: course1.id, textbookId: textbook1.id, quantity: 60, status: TextbookOrderStatus.APPROVED } });
+    await prisma.textbookOrder.create({
+      data: {
+        semesterId,
+        courseId: course1.id,
+        textbookId: textbook1.id,
+        quantity: 60,
+        status: TextbookOrderStatus.APPROVED,
+      },
+    });
   }
 
   const existingOrder2 = await prisma.textbookOrder.findFirst({
     where: { semesterId, courseId: course2.id, textbookId: textbook2.id },
   });
   if (existingOrder2) {
-    await prisma.textbookOrder.update({ where: { id: existingOrder2.id }, data: { quantity: 45, status: TextbookOrderStatus.PENDING } });
+    await prisma.textbookOrder.update({
+      where: { id: existingOrder2.id },
+      data: { quantity: 45, status: TextbookOrderStatus.PENDING },
+    });
   } else {
-    await prisma.textbookOrder.create({ data: { semesterId, courseId: course2.id, textbookId: textbook2.id, quantity: 45, status: TextbookOrderStatus.PENDING } });
+    await prisma.textbookOrder.create({
+      data: {
+        semesterId,
+        courseId: course2.id,
+        textbookId: textbook2.id,
+        quantity: 45,
+        status: TextbookOrderStatus.PENDING,
+      },
+    });
   }
 
   const requestStart = new Date('2026-06-20T14:00:00+08:00');
   const existingRequest = await prisma.classroomRequest.findFirst({
-    where: { applicantId: users[4]!.id, classroomId: classroom2.id, startTime: requestStart },
+    where: {
+      applicantId: users[4]!.id,
+      classroomId: classroom2.id,
+      startTime: requestStart,
+    },
   });
   const classroomRequest = existingRequest
     ? await prisma.classroomRequest.update({
         where: { id: existingRequest.id },
-        data: { endTime: new Date('2026-06-20T16:00:00+08:00'), purpose: '课程答疑', status: WorkflowStatus.APPROVED },
+        data: {
+          endTime: new Date('2026-06-20T16:00:00+08:00'),
+          purpose: '课程答疑',
+          status: WorkflowStatus.APPROVED,
+        },
       })
     : await prisma.classroomRequest.create({
-        data: { applicantId: users[4]!.id, classroomId: classroom2.id, startTime: requestStart, endTime: new Date('2026-06-20T16:00:00+08:00'), purpose: '课程答疑', status: WorkflowStatus.APPROVED },
+        data: {
+          applicantId: users[4]!.id,
+          classroomId: classroom2.id,
+          startTime: requestStart,
+          endTime: new Date('2026-06-20T16:00:00+08:00'),
+          purpose: '课程答疑',
+          status: WorkflowStatus.APPROVED,
+        },
       });
 
   const existingChange = await prisma.scheduleChange.findFirst({
-    where: { teacherId: teacher3.id, courseId: course1.id, classGroupId: computerClass.id, reason: '参加教学研讨会' },
+    where: {
+      teacherId: teacher3.id,
+      courseId: course1.id,
+      classGroupId: computerClass.id,
+      reason: '参加教学研讨会',
+    },
   });
   const scheduleChange = existingChange
-    ? await prisma.scheduleChange.update({ where: { id: existingChange.id }, data: { hours: 2, status: WorkflowStatus.PENDING } })
-    : await prisma.scheduleChange.create({ data: { teacherId: teacher3.id, courseId: course1.id, classGroupId: computerClass.id, hours: 2, reason: '参加教学研讨会', status: WorkflowStatus.PENDING } });
+    ? await prisma.scheduleChange.update({
+        where: { id: existingChange.id },
+        data: { hours: 2, status: WorkflowStatus.PENDING },
+      })
+    : await prisma.scheduleChange.create({
+        data: {
+          teacherId: teacher3.id,
+          courseId: course1.id,
+          classGroupId: computerClass.id,
+          hours: 2,
+          reason: '参加教学研讨会',
+          status: WorkflowStatus.PENDING,
+        },
+      });
 
   await prisma.graduationReview.upsert({
     where: { studentId_semesterId: { studentId: students[5]!.id, semesterId } },
-    update: { totalCredits: 132, hasFailedRequiredCourse: false, result: GraduationResult.PASSED },
-    create: { studentId: students[5]!.id, semesterId, totalCredits: 132, hasFailedRequiredCourse: false, result: GraduationResult.PASSED },
+    update: {
+      totalCredits: 132,
+      hasFailedRequiredCourse: false,
+      result: GraduationResult.PASSED,
+    },
+    create: {
+      studentId: students[5]!.id,
+      semesterId,
+      totalCredits: 132,
+      hasFailedRequiredCourse: false,
+      result: GraduationResult.PASSED,
+    },
   });
 
   await prisma.graduationReview.upsert({
     where: { studentId_semesterId: { studentId: students[1]!.id, semesterId } },
-    update: { totalCredits: 116, hasFailedRequiredCourse: true, result: GraduationResult.REVIEW_REQUIRED },
-    create: { studentId: students[1]!.id, semesterId, totalCredits: 116, hasFailedRequiredCourse: true, result: GraduationResult.REVIEW_REQUIRED },
+    update: {
+      totalCredits: 116,
+      hasFailedRequiredCourse: true,
+      result: GraduationResult.REVIEW_REQUIRED,
+    },
+    create: {
+      studentId: students[1]!.id,
+      semesterId,
+      totalCredits: 116,
+      hasFailedRequiredCourse: true,
+      result: GraduationResult.REVIEW_REQUIRED,
+    },
   });
 
   const lessonDate = new Date('2026-06-10T00:00:00+08:00');
   const existingLog = await prisma.teachingLog.findFirst({
-    where: { teacherId: teacher3.id, courseId: course1.id, classGroupId: computerClass.id, lessonDate },
+    where: {
+      teacherId: teacher3.id,
+      courseId: course1.id,
+      classGroupId: computerClass.id,
+      lessonDate,
+    },
   });
   if (existingLog) {
-    await prisma.teachingLog.update({ where: { id: existingLog.id }, data: { content: '数组与函数综合练习', attendanceSummary: '应到3人，实到3人', status: TeachingLogStatus.SUBMITTED } });
+    await prisma.teachingLog.update({
+      where: { id: existingLog.id },
+      data: {
+        content: '数组与函数综合练习',
+        attendanceSummary: '应到3人，实到3人',
+        status: TeachingLogStatus.SUBMITTED,
+      },
+    });
   } else {
-    await prisma.teachingLog.create({ data: { teacherId: teacher3.id, courseId: course1.id, classGroupId: computerClass.id, lessonDate, content: '数组与函数综合练习', attendanceSummary: '应到3人，实到3人', status: TeachingLogStatus.SUBMITTED } });
+    await prisma.teachingLog.create({
+      data: {
+        teacherId: teacher3.id,
+        courseId: course1.id,
+        classGroupId: computerClass.id,
+        lessonDate,
+        content: '数组与函数综合练习',
+        attendanceSummary: '应到3人，实到3人',
+        status: TeachingLogStatus.SUBMITTED,
+      },
+    });
   }
 
   const academicUser = users[1]!;
   const approvalInputs = [
-    { businessType: 'CLASSROOM_REQUEST', businessId: classroomRequest.id, action: ApprovalAction.APPROVE, comment: '教室时间无冲突，同意申请' },
-    { businessType: 'SCHEDULE_CHANGE', businessId: scheduleChange.id, action: ApprovalAction.SUBMIT, comment: '等待系部审核' },
-    { businessType: 'EXAM', businessId: exam.id, action: ApprovalAction.APPROVE, comment: '考试安排审核通过' },
+    {
+      businessType: 'CLASSROOM_REQUEST',
+      businessId: classroomRequest.id,
+      action: ApprovalAction.APPROVE,
+      comment: '教室时间无冲突，同意申请',
+    },
+    {
+      businessType: 'SCHEDULE_CHANGE',
+      businessId: scheduleChange.id,
+      action: ApprovalAction.SUBMIT,
+      comment: '等待系部审核',
+    },
+    {
+      businessType: 'EXAM',
+      businessId: exam.id,
+      action: ApprovalAction.APPROVE,
+      comment: '考试安排审核通过',
+    },
   ] as const;
 
   for (const input of approvalInputs) {
     const existing = await prisma.approvalRecord.findFirst({
-      where: { businessType: input.businessType, businessId: input.businessId, operatorId: academicUser.id, action: input.action },
+      where: {
+        businessType: input.businessType,
+        businessId: input.businessId,
+        operatorId: academicUser.id,
+        action: input.action,
+      },
     });
     if (existing) {
-      await prisma.approvalRecord.update({ where: { id: existing.id }, data: { comment: input.comment } });
+      await prisma.approvalRecord.update({
+        where: { id: existing.id },
+        data: { comment: input.comment },
+      });
     } else {
-      await prisma.approvalRecord.create({ data: { ...input, operatorId: academicUser.id } });
+      await prisma.approvalRecord.create({
+        data: { ...input, operatorId: academicUser.id },
+      });
     }
   }
 
   const operationInputs = [
-    { userId: users[0]!.id, module: 'SYSTEM', action: 'SEED_DATA', targetId: null },
-    { userId: users[4]!.id, module: 'CLASSROOM_REQUEST', action: 'CREATE', targetId: classroomRequest.id },
-    { userId: academicUser.id, module: 'EXAM', action: 'APPROVE', targetId: exam.id },
+    {
+      userId: users[0]!.id,
+      module: 'SYSTEM',
+      action: 'SEED_DATA',
+      targetId: null,
+    },
+    {
+      userId: users[4]!.id,
+      module: 'CLASSROOM_REQUEST',
+      action: 'CREATE',
+      targetId: classroomRequest.id,
+    },
+    {
+      userId: academicUser.id,
+      module: 'EXAM',
+      action: 'APPROVE',
+      targetId: exam.id,
+    },
   ] as const;
 
   for (const input of operationInputs) {
-    const existing = await prisma.operationLog.findFirst({ where: { ...input } });
+    const existing = await prisma.operationLog.findFirst({
+      where: { ...input },
+    });
     if (!existing) {
       await prisma.operationLog.create({ data: input });
     }
@@ -460,7 +907,8 @@ async function main() {
   const allTeachers = [teacher1, teacher2, teacher3, teacher4, teacher5];
   for (let index = 6; index <= 12; index += 1) {
     const employeeNo = `T${String(index).padStart(4, '0')}`;
-    const department = index % 2 === 0 ? computerDepartment : softwareDepartment;
+    const department =
+      index % 2 === 0 ? computerDepartment : softwareDepartment;
     const teacher = await prisma.teacher.upsert({
       where: { employeeNo },
       update: {
@@ -483,61 +931,124 @@ async function main() {
   }
 
   const extraClassSpecs = [
-    { name: '计算机2302班', grade: 2023, majorId: computerMajor.id, departmentId: computerDepartment.id, counselorId: teacher3.id },
-    { name: '软件工程2302班', grade: 2023, majorId: softwareMajor.id, departmentId: softwareDepartment.id, counselorId: teacher4.id },
-    { name: '计算机2401班', grade: 2024, majorId: computerMajor.id, departmentId: computerDepartment.id, counselorId: allTeachers[5]!.id },
-    { name: '软件工程2401班', grade: 2024, majorId: softwareMajor.id, departmentId: softwareDepartment.id, counselorId: allTeachers[6]!.id },
+    {
+      name: '计算机2302班',
+      grade: 2023,
+      majorId: computerMajor.id,
+      departmentId: computerDepartment.id,
+      counselorId: teacher3.id,
+    },
+    {
+      name: '软件工程2302班',
+      grade: 2023,
+      majorId: softwareMajor.id,
+      departmentId: softwareDepartment.id,
+      counselorId: teacher4.id,
+    },
+    {
+      name: '计算机2401班',
+      grade: 2024,
+      majorId: computerMajor.id,
+      departmentId: computerDepartment.id,
+      counselorId: allTeachers[5]!.id,
+    },
+    {
+      name: '软件工程2401班',
+      grade: 2024,
+      majorId: softwareMajor.id,
+      departmentId: softwareDepartment.id,
+      counselorId: allTeachers[6]!.id,
+    },
   ];
   const extraClassGroups = [];
   for (const spec of extraClassSpecs) {
-    const existing = await prisma.classGroup.findFirst({ where: { name: spec.name } });
+    const existing = await prisma.classGroup.findFirst({
+      where: { name: spec.name },
+    });
     extraClassGroups.push(
       existing
-        ? await prisma.classGroup.update({ where: { id: existing.id }, data: { ...spec, studentCount: 0 } })
-        : await prisma.classGroup.create({ data: { ...spec, studentCount: 0 } }),
+        ? await prisma.classGroup.update({
+            where: { id: existing.id },
+            data: { ...spec, studentCount: 0 },
+          })
+        : await prisma.classGroup.create({
+            data: { ...spec, studentCount: 0 },
+          }),
     );
   }
   const allClassGroups = [computerClass, softwareClass, ...extraClassGroups];
 
+  const bulkStudentClassSpecs = [
+    {
+      classGroup: extraClassGroups[0]!,
+      grade: 2023,
+      majorCode: '01',
+      classCode: '02',
+    },
+    {
+      classGroup: extraClassGroups[1]!,
+      grade: 2023,
+      majorCode: '02',
+      classCode: '02',
+    },
+    {
+      classGroup: extraClassGroups[2]!,
+      grade: 2024,
+      majorCode: '01',
+      classCode: '01',
+    },
+    {
+      classGroup: extraClassGroups[3]!,
+      grade: 2024,
+      majorCode: '02',
+      classCode: '01',
+    },
+  ];
   const bulkStudents = [];
   for (let index = 1; index <= 120; index += 1) {
-    const studentNo = `2024${String(index).padStart(4, '0')}`;
-    const classGroup = allClassGroups[(index - 1) % allClassGroups.length]!;
-    const status = index % 40 === 0
-      ? StudentStatus.WITHDRAWN
-      : index % 25 === 0
-        ? StudentStatus.SUSPENDED
-        : StudentStatus.ENROLLED;
+    const classSpec =
+      bulkStudentClassSpecs[(index - 1) % bulkStudentClassSpecs.length]!;
+    const withinClassNo =
+      Math.floor((index - 1) / bulkStudentClassSpecs.length) + 1;
+    const studentNo = buildStudentNo(
+      classSpec.grade,
+      classSpec.majorCode,
+      classSpec.classCode,
+      withinClassNo,
+    );
+    const status =
+      index % 40 === 0
+        ? StudentStatus.WITHDRAWN
+        : index % 25 === 0
+          ? StudentStatus.SUSPENDED
+          : StudentStatus.ENROLLED;
     bulkStudents.push(
-      await prisma.student.upsert({
-        where: { studentNo },
-        update: {
-          name: `批量测试学生${String(index).padStart(3, '0')}`,
-          classGroupId: classGroup.id,
-          grade: 2024,
-          status,
-          phone: `1391000${String(index).padStart(4, '0')}`,
-        },
-        create: {
-          studentNo,
-          name: `批量测试学生${String(index).padStart(3, '0')}`,
-          classGroupId: classGroup.id,
-          grade: 2024,
-          status,
-          phone: `1391000${String(index).padStart(4, '0')}`,
-        },
+      await upsertSeedStudent({
+        legacyStudentNo: `2024${String(index).padStart(4, '0')}`,
+        studentNo,
+        name: `批量测试学生${String(index).padStart(3, '0')}`,
+        classGroupId: classSpec.classGroup.id,
+        grade: classSpec.grade,
+        status,
+        phone: `1391000${String(index).padStart(4, '0')}`,
       }),
     );
   }
   for (const classGroup of allClassGroups) {
-    const studentCount = await prisma.student.count({ where: { classGroupId: classGroup.id } });
-    await prisma.classGroup.update({ where: { id: classGroup.id }, data: { studentCount } });
+    const studentCount = await prisma.student.count({
+      where: { classGroupId: classGroup.id },
+    });
+    await prisma.classGroup.update({
+      where: { id: classGroup.id },
+      data: { studentCount },
+    });
   }
 
   const bulkCourses = [];
   for (let index = 1; index <= 15; index += 1) {
     const code = `TEST${String(index).padStart(3, '0')}`;
-    const department = index % 2 === 0 ? computerDepartment : softwareDepartment;
+    const department =
+      index % 2 === 0 ? computerDepartment : softwareDepartment;
     const director = allTeachers[(index - 1) % allTeachers.length]!;
     bulkCourses.push(
       await prisma.course.upsert({
@@ -573,7 +1084,10 @@ async function main() {
           type: index % 3 === 0 ? '计算机实验室' : '多媒体教室',
           capacity: 30 + index * 5,
           area: 60 + index * 4,
-          status: index % 6 === 0 ? ClassroomStatus.MAINTENANCE : ClassroomStatus.AVAILABLE,
+          status:
+            index % 6 === 0
+              ? ClassroomStatus.MAINTENANCE
+              : ClassroomStatus.AVAILABLE,
         },
         create: {
           roomNo,
@@ -582,7 +1096,10 @@ async function main() {
           type: index % 3 === 0 ? '计算机实验室' : '多媒体教室',
           capacity: 30 + index * 5,
           area: 60 + index * 4,
-          status: index % 6 === 0 ? ClassroomStatus.MAINTENANCE : ClassroomStatus.AVAILABLE,
+          status:
+            index % 6 === 0
+              ? ClassroomStatus.MAINTENANCE
+              : ClassroomStatus.AVAILABLE,
         },
       }),
     );
@@ -594,8 +1111,19 @@ async function main() {
     bulkTextbooks.push(
       await prisma.textbook.upsert({
         where: { isbn },
-        update: { name: `测试教材${String(index).padStart(2, '0')}`, author: `测试作者${index}`, publisher: '测试教育出版社', price: 35 + index * 2.5 },
-        create: { isbn, name: `测试教材${String(index).padStart(2, '0')}`, author: `测试作者${index}`, publisher: '测试教育出版社', price: 35 + index * 2.5 },
+        update: {
+          name: `测试教材${String(index).padStart(2, '0')}`,
+          author: `测试作者${index}`,
+          publisher: '测试教育出版社',
+          price: 35 + index * 2.5,
+        },
+        create: {
+          isbn,
+          name: `测试教材${String(index).padStart(2, '0')}`,
+          author: `测试作者${index}`,
+          publisher: '测试教育出版社',
+          price: 35 + index * 2.5,
+        },
       }),
     );
   }
@@ -609,12 +1137,34 @@ async function main() {
     const startTime = new Date(Date.UTC(2026, 5, 1 + index, 1, 0, 0));
     const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
     const existing = await prisma.exam.findFirst({
-      where: { semesterId, courseId: course.id, classGroupId: classGroup.id, startTime },
+      where: {
+        semesterId,
+        courseId: course.id,
+        classGroupId: classGroup.id,
+        startTime,
+      },
     });
     bulkExams.push(
       existing
-        ? await prisma.exam.update({ where: { id: existing.id }, data: { classroomId: classroom.id, endTime, invigilatorId: invigilator.id } })
-        : await prisma.exam.create({ data: { semesterId, courseId: course.id, classGroupId: classGroup.id, classroomId: classroom.id, startTime, endTime, invigilatorId: invigilator.id } }),
+        ? await prisma.exam.update({
+            where: { id: existing.id },
+            data: {
+              classroomId: classroom.id,
+              endTime,
+              invigilatorId: invigilator.id,
+            },
+          })
+        : await prisma.exam.create({
+            data: {
+              semesterId,
+              courseId: course.id,
+              classGroupId: classGroup.id,
+              classroomId: classroom.id,
+              startTime,
+              endTime,
+              invigilatorId: invigilator.id,
+            },
+          }),
     );
   }
 
@@ -626,12 +1176,24 @@ async function main() {
     });
     const data = {
       quantity: 30 + index * 2,
-      status: index % 4 === 0 ? TextbookOrderStatus.RECEIVED : index % 3 === 0 ? TextbookOrderStatus.APPROVED : TextbookOrderStatus.PENDING,
+      status:
+        index % 4 === 0
+          ? TextbookOrderStatus.RECEIVED
+          : index % 3 === 0
+            ? TextbookOrderStatus.APPROVED
+            : TextbookOrderStatus.PENDING,
     };
     if (existing) {
       await prisma.textbookOrder.update({ where: { id: existing.id }, data });
     } else {
-      await prisma.textbookOrder.create({ data: { semesterId, courseId: course.id, textbookId: textbook.id, ...data } });
+      await prisma.textbookOrder.create({
+        data: {
+          semesterId,
+          courseId: course.id,
+          textbookId: textbook.id,
+          ...data,
+        },
+      });
     }
   }
 
@@ -642,12 +1204,38 @@ async function main() {
     const startTime = new Date(Date.UTC(2026, 3, 1 + index, 6, 0, 0));
     const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
     const existing = await prisma.classroomRequest.findFirst({
-      where: { applicantId: applicant.id, classroomId: classroom.id, startTime },
+      where: {
+        applicantId: applicant.id,
+        classroomId: classroom.id,
+        startTime,
+      },
     });
     bulkRequests.push(
       existing
-        ? await prisma.classroomRequest.update({ where: { id: existing.id }, data: { endTime, purpose: `批量教室申请${index}`, status: index % 4 === 0 ? WorkflowStatus.REJECTED : WorkflowStatus.APPROVED } })
-        : await prisma.classroomRequest.create({ data: { applicantId: applicant.id, classroomId: classroom.id, startTime, endTime, purpose: `批量教室申请${index}`, status: index % 4 === 0 ? WorkflowStatus.REJECTED : WorkflowStatus.APPROVED } }),
+        ? await prisma.classroomRequest.update({
+            where: { id: existing.id },
+            data: {
+              endTime,
+              purpose: `批量教室申请${index}`,
+              status:
+                index % 4 === 0
+                  ? WorkflowStatus.REJECTED
+                  : WorkflowStatus.APPROVED,
+            },
+          })
+        : await prisma.classroomRequest.create({
+            data: {
+              applicantId: applicant.id,
+              classroomId: classroom.id,
+              startTime,
+              endTime,
+              purpose: `批量教室申请${index}`,
+              status:
+                index % 4 === 0
+                  ? WorkflowStatus.REJECTED
+                  : WorkflowStatus.APPROVED,
+            },
+          }),
     );
   }
 
@@ -658,19 +1246,47 @@ async function main() {
     const classGroup = allClassGroups[(index - 1) % allClassGroups.length]!;
     const reason = `批量调课测试原因${index}`;
     const existing = await prisma.scheduleChange.findFirst({
-      where: { teacherId: teacher.id, courseId: course.id, classGroupId: classGroup.id, reason },
+      where: {
+        teacherId: teacher.id,
+        courseId: course.id,
+        classGroupId: classGroup.id,
+        reason,
+      },
     });
     bulkChanges.push(
       existing
-        ? await prisma.scheduleChange.update({ where: { id: existing.id }, data: { hours: 1 + (index % 4), status: index % 5 === 0 ? WorkflowStatus.REJECTED : WorkflowStatus.PENDING } })
-        : await prisma.scheduleChange.create({ data: { teacherId: teacher.id, courseId: course.id, classGroupId: classGroup.id, hours: 1 + (index % 4), reason, status: index % 5 === 0 ? WorkflowStatus.REJECTED : WorkflowStatus.PENDING } }),
+        ? await prisma.scheduleChange.update({
+            where: { id: existing.id },
+            data: {
+              hours: 1 + (index % 4),
+              status:
+                index % 5 === 0
+                  ? WorkflowStatus.REJECTED
+                  : WorkflowStatus.PENDING,
+            },
+          })
+        : await prisma.scheduleChange.create({
+            data: {
+              teacherId: teacher.id,
+              courseId: course.id,
+              classGroupId: classGroup.id,
+              hours: 1 + (index % 4),
+              reason,
+              status:
+                index % 5 === 0
+                  ? WorkflowStatus.REJECTED
+                  : WorkflowStatus.PENDING,
+            },
+          }),
     );
   }
 
   for (let index = 0; index < 40; index += 1) {
     const student = bulkStudents[index]!;
     const hasFailedRequiredCourse = index % 7 === 0;
-    const totalCredits = hasFailedRequiredCourse ? 110 + (index % 10) : 120 + (index % 18);
+    const totalCredits = hasFailedRequiredCourse
+      ? 110 + (index % 10)
+      : 120 + (index % 18);
     const result = hasFailedRequiredCourse
       ? GraduationResult.REVIEW_REQUIRED
       : totalCredits >= 120
@@ -679,7 +1295,13 @@ async function main() {
     await prisma.graduationReview.upsert({
       where: { studentId_semesterId: { studentId: student.id, semesterId } },
       update: { totalCredits, hasFailedRequiredCourse, result },
-      create: { studentId: student.id, semesterId, totalCredits, hasFailedRequiredCourse, result },
+      create: {
+        studentId: student.id,
+        semesterId,
+        totalCredits,
+        hasFailedRequiredCourse,
+        result,
+      },
     });
   }
 
@@ -689,37 +1311,81 @@ async function main() {
     const classGroup = allClassGroups[(index - 1) % allClassGroups.length]!;
     const bulkLessonDate = new Date(Date.UTC(2026, 2, 1 + index, 0, 0, 0));
     const existing = await prisma.teachingLog.findFirst({
-      where: { teacherId: teacher.id, courseId: course.id, classGroupId: classGroup.id, lessonDate: bulkLessonDate },
+      where: {
+        teacherId: teacher.id,
+        courseId: course.id,
+        classGroupId: classGroup.id,
+        lessonDate: bulkLessonDate,
+      },
     });
     const data = {
       content: `第${index}次批量教学日志：课堂教学与练习`,
       attendanceSummary: `应到${30 + (index % 20)}人，缺勤${index % 4}人`,
-      status: index % 4 === 0 ? TeachingLogStatus.APPROVED : TeachingLogStatus.SUBMITTED,
+      status:
+        index % 4 === 0
+          ? TeachingLogStatus.APPROVED
+          : TeachingLogStatus.SUBMITTED,
     };
     if (existing) {
       await prisma.teachingLog.update({ where: { id: existing.id }, data });
     } else {
-      await prisma.teachingLog.create({ data: { teacherId: teacher.id, courseId: course.id, classGroupId: classGroup.id, lessonDate: bulkLessonDate, ...data } });
+      await prisma.teachingLog.create({
+        data: {
+          teacherId: teacher.id,
+          courseId: course.id,
+          classGroupId: classGroup.id,
+          lessonDate: bulkLessonDate,
+          ...data,
+        },
+      });
     }
   }
 
   for (const request of bulkRequests) {
-    const action = request.status === WorkflowStatus.REJECTED ? ApprovalAction.REJECT : ApprovalAction.APPROVE;
+    const action =
+      request.status === WorkflowStatus.REJECTED
+        ? ApprovalAction.REJECT
+        : ApprovalAction.APPROVE;
     const existing = await prisma.approvalRecord.findFirst({
-      where: { businessType: 'CLASSROOM_REQUEST', businessId: request.id, operatorId: academicUser.id, action },
+      where: {
+        businessType: 'CLASSROOM_REQUEST',
+        businessId: request.id,
+        operatorId: academicUser.id,
+        action,
+      },
     });
     if (!existing) {
-      await prisma.approvalRecord.create({ data: { businessType: 'CLASSROOM_REQUEST', businessId: request.id, operatorId: academicUser.id, action, comment: '批量审批测试记录' } });
+      await prisma.approvalRecord.create({
+        data: {
+          businessType: 'CLASSROOM_REQUEST',
+          businessId: request.id,
+          operatorId: academicUser.id,
+          action,
+          comment: '批量审批测试记录',
+        },
+      });
     }
   }
 
   for (let index = 0; index < 25; index += 1) {
     const examRecord = bulkExams[index % bulkExams.length]!;
     const existing = await prisma.operationLog.findFirst({
-      where: { userId: academicUser.id, module: 'EXAM', action: `BULK_TEST_${index + 1}`, targetId: examRecord.id },
+      where: {
+        userId: academicUser.id,
+        module: 'EXAM',
+        action: `BULK_TEST_${index + 1}`,
+        targetId: examRecord.id,
+      },
     });
     if (!existing) {
-      await prisma.operationLog.create({ data: { userId: academicUser.id, module: 'EXAM', action: `BULK_TEST_${index + 1}`, targetId: examRecord.id } });
+      await prisma.operationLog.create({
+        data: {
+          userId: academicUser.id,
+          module: 'EXAM',
+          action: `BULK_TEST_${index + 1}`,
+          targetId: examRecord.id,
+        },
+      });
     }
   }
 
@@ -742,6 +1408,30 @@ async function main() {
     prisma.approvalRecord.count(),
     prisma.operationLog.count(),
   ]);
+
+  const studentNoRows = await prisma.student.findMany({
+    select: { studentNo: true, grade: true },
+    orderBy: { studentNo: 'asc' },
+  });
+  const invalidStudentNos = studentNoRows.filter(
+    ({ studentNo, grade }) =>
+      !/^\d{12}$/.test(studentNo) ||
+      studentNo.slice(0, 4) !== String(grade) ||
+      studentNo.slice(4, 6) !== seedCollegeCode,
+  );
+
+  if (invalidStudentNos.length > 0) {
+    throw new Error(
+      `Found ${invalidStudentNos.length} invalid student numbers: ${invalidStudentNos
+        .slice(0, 5)
+        .map((item) => item.studentNo)
+        .join(', ')}`,
+    );
+  }
+
+  console.log(
+    `Student number check passed: ${studentNoRows.length} records match 4-2-2-2-2.`,
+  );
 
   console.table({
     users: counts[0],
@@ -770,7 +1460,9 @@ async function main() {
   }
 
   console.log('Seed执行完成。');
-  console.log('测试账号：admin、academic_admin、department_admin、research_director、teacher、student、textbook_admin、leader');
+  console.log(
+    '测试账号：admin、academic_admin、department_admin、research_director、teacher、student、textbook_admin、leader',
+  );
   console.log(`默认测试密码：${defaultPassword}`);
 }
 

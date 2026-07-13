@@ -1,0 +1,873 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "教学管理系统 - 教室借用、调课与考务 API",
+    "version": "1.0.0",
+    "description": "可直接导入 Apifox 的接口定义，覆盖教室借用申请、课表调课申请和考试安排管理。所有响应均使用 success/data/error 统一结构。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "本地后端服务"
+    }
+  ],
+  "tags": [
+    { "name": "教室借用申请" },
+    { "name": "课表调课" },
+    { "name": "考务管理" }
+  ],
+  "paths": {
+    "/classroom-requests": {
+      "get": {
+        "tags": ["教室借用申请"],
+        "summary": "分页查询教室借用申请",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" },
+          {
+            "name": "applicantId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "申请用户 ID"
+          },
+          {
+            "name": "classroomId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "教室 ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/WorkflowStatus" }
+          },
+          {
+            "name": "startTimeFrom",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "开始时间下限"
+          },
+          {
+            "name": "startTimeTo",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "开始时间上限"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "用途、教室号或申请人关键字"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ClassroomRequestPageSuccess"
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["教室借用申请"],
+        "summary": "创建教室借用申请",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClassroomRequest"
+              },
+              "example": {
+                "applicantId": 1,
+                "classroomId": 1,
+                "startTime": "2026-09-10T06:00:00.000Z",
+                "endTime": "2026-09-10T08:00:00.000Z",
+                "purpose": "学院教学研讨会"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/classroom-requests/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["教室借用申请"],
+        "summary": "查询教室借用申请详情",
+        "responses": {
+          "200": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["教室借用申请"],
+        "summary": "修改教室借用申请",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClassroomRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "tags": ["教室借用申请"],
+        "summary": "删除教室借用申请",
+        "responses": {
+          "200": { "$ref": "#/components/responses/DeleteSuccess" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/classroom-requests/{id}/status": {
+      "patch": {
+        "tags": ["教室借用申请"],
+        "summary": "审批或变更教室借用申请状态",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWorkflowStatus" },
+              "example": {
+                "status": "APPROVED",
+                "operatorId": 1,
+                "comment": "同意借用"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/schedule-changes": {
+      "get": {
+        "tags": ["课表调课"],
+        "summary": "分页查询调课申请",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "教师 ID"
+          },
+          {
+            "name": "courseId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "课程 ID"
+          },
+          {
+            "name": "classGroupId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "班级 ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/WorkflowStatus" }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "教师、课程、班级或原因关键字"
+          }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/ScheduleChangePageSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["课表调课"],
+        "summary": "创建调课申请",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateScheduleChange" },
+              "example": {
+                "teacherId": 1,
+                "courseId": 1,
+                "classGroupId": 1,
+                "hours": 2,
+                "reason": "参加学院教学会议"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/ScheduleChangeSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/schedule-changes/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["课表调课"],
+        "summary": "查询调课申请详情",
+        "responses": {
+          "200": { "$ref": "#/components/responses/ScheduleChangeSuccess" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["课表调课"],
+        "summary": "修改调课申请",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateScheduleChange" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/ScheduleChangeSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["课表调课"],
+        "summary": "删除调课申请",
+        "responses": {
+          "200": { "$ref": "#/components/responses/DeleteSuccess" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/schedule-changes/{id}/status": {
+      "patch": {
+        "tags": ["课表调课"],
+        "summary": "审批或变更调课申请状态",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWorkflowStatus" },
+              "example": {
+                "status": "REJECTED",
+                "operatorId": 1,
+                "comment": "时间安排冲突"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/ScheduleChangeSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/exams": {
+      "get": {
+        "tags": ["考务管理"],
+        "summary": "分页查询考试安排",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "学期 ID"
+          },
+          {
+            "name": "courseId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "课程 ID"
+          },
+          {
+            "name": "classGroupId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "班级 ID"
+          },
+          {
+            "name": "classroomId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "教室 ID"
+          },
+          {
+            "name": "invigilatorId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "监考教师 ID"
+          },
+          {
+            "name": "startTimeFrom",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "考试开始时间下限"
+          },
+          {
+            "name": "startTimeTo",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "考试开始时间上限"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "课程、班级、教室或监考教师关键字"
+          }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/ExamPageSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["考务管理"],
+        "summary": "创建考试安排",
+        "description": "自动校验教室、班级、监考教师及教室借用时段冲突。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateExam" },
+              "example": {
+                "semesterId": 202601,
+                "courseId": 1,
+                "classGroupId": 1,
+                "classroomId": 1,
+                "startTime": "2027-01-10T01:00:00.000Z",
+                "endTime": "2027-01-10T03:00:00.000Z",
+                "invigilatorId": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/ExamSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/exams/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["考务管理"],
+        "summary": "查询考试安排详情",
+        "responses": {
+          "200": { "$ref": "#/components/responses/ExamSuccess" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["考务管理"],
+        "summary": "修改考试安排",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateExam" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/ExamSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "tags": ["考务管理"],
+        "summary": "删除考试安排",
+        "responses": {
+          "200": { "$ref": "#/components/responses/DeleteSuccess" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "integer", "minimum": 1 }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "default": 10 }
+      }
+    },
+    "schemas": {
+      "WorkflowStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "PENDING",
+          "APPROVED",
+          "REJECTED",
+          "CANCELLED",
+          "COMPLETED"
+        ],
+        "description": "流程状态：草稿、待审批、已通过、已驳回、已取消、已完成"
+      },
+      "ApiError": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string", "example": "VALIDATION_ERROR" },
+          "message": { "type": "string", "example": "参数错误" },
+          "details": {
+            "type": "array",
+            "items": { "type": "string" },
+            "nullable": true,
+            "example": ["classroomId must be an integer number"]
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [false] },
+          "data": { "nullable": true, "example": null },
+          "error": { "$ref": "#/components/schemas/ApiError" }
+        }
+      },
+      "DeleteResult": {
+        "type": "object",
+        "required": ["deleted"],
+        "properties": { "deleted": { "type": "boolean", "example": true } }
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/DeleteResult" },
+          "error": { "nullable": true, "example": null }
+        }
+      },
+      "CreateClassroomRequest": {
+        "type": "object",
+        "required": [
+          "applicantId",
+          "classroomId",
+          "startTime",
+          "endTime",
+          "purpose"
+        ],
+        "properties": {
+          "applicantId": { "type": "integer" },
+          "classroomId": { "type": "integer" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "purpose": { "type": "string", "maxLength": 255 },
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+        }
+      },
+      "UpdateClassroomRequest": {
+        "type": "object",
+        "properties": {
+          "applicantId": { "type": "integer" },
+          "classroomId": { "type": "integer" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "purpose": { "type": "string", "maxLength": 255 },
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+        }
+      },
+      "ClassroomRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "applicantId",
+          "applicantName",
+          "applicantUsername",
+          "classroomId",
+          "classroomRoomNo",
+          "startTime",
+          "endTime",
+          "purpose",
+          "status"
+        ],
+        "properties": {
+          "id": { "type": "integer" },
+          "applicantId": { "type": "integer" },
+          "applicantName": { "type": "string" },
+          "applicantUsername": { "type": "string" },
+          "classroomId": { "type": "integer" },
+          "classroomRoomNo": { "type": "string" },
+          "classroomCampus": { "type": "string", "nullable": true },
+          "classroomBuilding": { "type": "string", "nullable": true },
+          "classroomType": { "type": "string", "nullable": true },
+          "classroomCapacity": { "type": "integer" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "purpose": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+        }
+      },
+      "UpdateWorkflowStatus": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" },
+          "operatorId": {
+            "type": "integer",
+            "description": "审批操作用户 ID；传入后写入审批记录"
+          },
+          "comment": { "type": "string", "maxLength": 500 }
+        }
+      },
+      "CreateScheduleChange": {
+        "type": "object",
+        "required": [
+          "teacherId",
+          "courseId",
+          "classGroupId",
+          "hours",
+          "reason"
+        ],
+        "properties": {
+          "teacherId": { "type": "integer" },
+          "courseId": { "type": "integer" },
+          "classGroupId": { "type": "integer" },
+          "hours": { "type": "number", "format": "float", "minimum": 0.5 },
+          "reason": { "type": "string", "maxLength": 500 },
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+        }
+      },
+      "UpdateScheduleChange": {
+        "type": "object",
+        "properties": {
+          "teacherId": { "type": "integer" },
+          "courseId": { "type": "integer" },
+          "classGroupId": { "type": "integer" },
+          "hours": { "type": "number", "format": "float", "minimum": 0.5 },
+          "reason": { "type": "string", "maxLength": 500 },
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+        }
+      },
+      "ScheduleChange": {
+        "type": "object",
+        "required": [
+          "id",
+          "teacherId",
+          "teacherName",
+          "teacherEmployeeNo",
+          "courseId",
+          "courseCode",
+          "courseName",
+          "classGroupId",
+          "classGroupName",
+          "classGroupGrade",
+          "hours",
+          "reason",
+          "status"
+        ],
+        "properties": {
+          "id": { "type": "integer" },
+          "teacherId": { "type": "integer" },
+          "teacherName": { "type": "string" },
+          "teacherEmployeeNo": { "type": "string" },
+          "courseId": { "type": "integer" },
+          "courseCode": { "type": "string" },
+          "courseName": { "type": "string" },
+          "classGroupId": { "type": "integer" },
+          "classGroupName": { "type": "string" },
+          "classGroupGrade": { "type": "integer" },
+          "hours": { "type": "number", "format": "float" },
+          "reason": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+        }
+      },
+      "CreateExam": {
+        "type": "object",
+        "required": [
+          "semesterId",
+          "courseId",
+          "classGroupId",
+          "classroomId",
+          "startTime",
+          "endTime"
+        ],
+        "properties": {
+          "semesterId": { "type": "integer" },
+          "courseId": { "type": "integer" },
+          "classGroupId": { "type": "integer" },
+          "classroomId": { "type": "integer" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "invigilatorId": { "type": "integer", "nullable": true }
+        }
+      },
+      "UpdateExam": {
+        "type": "object",
+        "properties": {
+          "semesterId": { "type": "integer" },
+          "courseId": { "type": "integer" },
+          "classGroupId": { "type": "integer" },
+          "classroomId": { "type": "integer" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "invigilatorId": {
+            "type": "integer",
+            "nullable": true,
+            "description": "传 null 可取消监考教师"
+          }
+        }
+      },
+      "Exam": {
+        "type": "object",
+        "required": [
+          "id",
+          "semesterId",
+          "courseId",
+          "courseCode",
+          "courseName",
+          "classGroupId",
+          "classGroupName",
+          "classGroupGrade",
+          "classroomId",
+          "classroomRoomNo",
+          "startTime",
+          "endTime"
+        ],
+        "properties": {
+          "id": { "type": "integer" },
+          "semesterId": { "type": "integer" },
+          "courseId": { "type": "integer" },
+          "courseCode": { "type": "string" },
+          "courseName": { "type": "string" },
+          "classGroupId": { "type": "integer" },
+          "classGroupName": { "type": "string" },
+          "classGroupGrade": { "type": "integer" },
+          "classroomId": { "type": "integer" },
+          "classroomRoomNo": { "type": "string" },
+          "classroomCampus": { "type": "string", "nullable": true },
+          "classroomBuilding": { "type": "string", "nullable": true },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "invigilatorId": { "type": "integer", "nullable": true },
+          "invigilatorName": { "type": "string", "nullable": true },
+          "invigilatorEmployeeNo": { "type": "string", "nullable": true }
+        }
+      },
+      "ClassroomRequestPage": {
+        "type": "object",
+        "required": ["list", "page", "pageSize", "total"],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ClassroomRequest" }
+          },
+          "page": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "total": { "type": "integer" }
+        }
+      },
+      "ScheduleChangePage": {
+        "type": "object",
+        "required": ["list", "page", "pageSize", "total"],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ScheduleChange" }
+          },
+          "page": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "total": { "type": "integer" }
+        }
+      },
+      "ExamPage": {
+        "type": "object",
+        "required": ["list", "page", "pageSize", "total"],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Exam" }
+          },
+          "page": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "total": { "type": "integer" }
+        }
+      },
+      "ClassroomRequestResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/ClassroomRequest" },
+          "error": { "nullable": true, "example": null }
+        }
+      },
+      "ClassroomRequestPageResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/ClassroomRequestPage" },
+          "error": { "nullable": true, "example": null }
+        }
+      },
+      "ScheduleChangeResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/ScheduleChange" },
+          "error": { "nullable": true, "example": null }
+        }
+      },
+      "ScheduleChangePageResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/ScheduleChangePage" },
+          "error": { "nullable": true, "example": null }
+        }
+      },
+      "ExamResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/Exam" },
+          "error": { "nullable": true, "example": null }
+        }
+      },
+      "ExamPageResponse": {
+        "type": "object",
+        "required": ["success", "data", "error"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "data": { "$ref": "#/components/schemas/ExamPage" },
+          "error": { "nullable": true, "example": null }
+        }
+      }
+    },
+    "responses": {
+      "ClassroomRequestSuccess": {
+        "description": "操作成功",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ClassroomRequestResponse"
+            }
+          }
+        }
+      },
+      "ClassroomRequestPageSuccess": {
+        "description": "查询成功",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ClassroomRequestPageResponse"
+            }
+          }
+        }
+      },
+      "ScheduleChangeSuccess": {
+        "description": "操作成功",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ScheduleChangeResponse" }
+          }
+        }
+      },
+      "ScheduleChangePageSuccess": {
+        "description": "查询成功",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ScheduleChangePageResponse"
+            }
+          }
+        }
+      },
+      "ExamSuccess": {
+        "description": "操作成功",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ExamResponse" }
+          }
+        }
+      },
+      "ExamPageSuccess": {
+        "description": "查询成功",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ExamPageResponse" }
+          }
+        }
+      },
+      "DeleteSuccess": {
+        "description": "删除成功",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/DeleteResponse" }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "请求参数或关联数据错误",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "数据不存在",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "业务冲突，例如时间段冲突",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      }
+    }
+  }
+}

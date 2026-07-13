@@ -25,6 +25,11 @@ export class StudentsController {
     return this.studentsService.findAll(query);
   }
 
+  @Get('options')
+  findOptions() {
+    return this.studentsService.findOptions();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.studentsService.findOne(id);

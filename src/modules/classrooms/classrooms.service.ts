@@ -45,13 +45,10 @@ export class ClassroomsService {
     ]);
 
     return {
-      success: true,
-      data: {
-        list: classrooms.map((classroom) => this.toClassroomDto(classroom)),
-        page,
-        pageSize,
-        total,
-      },
+      list: classrooms.map((classroom) => this.toClassroomDto(classroom)),
+      page,
+      pageSize,
+      total,
     };
   }
 
@@ -64,10 +61,7 @@ export class ClassroomsService {
       throw new NotFoundException('Classroom not found');
     }
 
-    return {
-      success: true,
-      data: this.toClassroomDto(classroom),
-    };
+    return this.toClassroomDto(classroom);
   }
 
   async findOptions() {
@@ -93,19 +87,16 @@ export class ClassroomsService {
     ]);
 
     return {
-      success: true,
-      data: {
-        campuses: campuses
-          .map((classroom) => classroom.campus)
-          .filter((campus): campus is string => Boolean(campus)),
-        buildings: buildings
-          .map((classroom) => classroom.building)
-          .filter((building): building is string => Boolean(building)),
-        types: types
-          .map((classroom) => classroom.type)
-          .filter((type): type is string => Boolean(type)),
-        statuses: Object.values(ClassroomStatus),
-      },
+      campuses: campuses
+        .map((classroom) => classroom.campus)
+        .filter((campus): campus is string => Boolean(campus)),
+      buildings: buildings
+        .map((classroom) => classroom.building)
+        .filter((building): building is string => Boolean(building)),
+      types: types
+        .map((classroom) => classroom.type)
+        .filter((type): type is string => Boolean(type)),
+      statuses: Object.values(ClassroomStatus),
     };
   }
 
@@ -119,10 +110,7 @@ export class ClassroomsService {
       },
     });
 
-    return {
-      success: true,
-      data: this.toClassroomDto(classroom),
-    };
+    return this.toClassroomDto(classroom);
   }
 
   async update(id: number, updateClassroomDto: UpdateClassroomDto) {
@@ -137,10 +125,7 @@ export class ClassroomsService {
       data: updateClassroomDto,
     });
 
-    return {
-      success: true,
-      data: this.toClassroomDto(classroom),
-    };
+    return this.toClassroomDto(classroom);
   }
 
   async remove(id: number) {
@@ -157,12 +142,7 @@ export class ClassroomsService {
 
     await this.prisma.classroom.delete({ where: { id } });
 
-    return {
-      success: true,
-      data: {
-        deleted: true,
-      },
-    };
+    return { deleted: true };
   }
 
   private async ensureClassroomExists(id: number) {

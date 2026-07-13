@@ -552,7 +552,71 @@
                       "专任教师",
                       "外聘教师"
                     ]
-                  }
+                  },
+                  "error": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/students/options": {
+      "get": {
+        "tags": [
+          "学生管理"
+        ],
+        "summary": "查询学生管理下拉选项",
+        "description": "一次返回院系、专业、班级、年级和学生状态，用于学生列表筛选及新增、编辑表单。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentOptionsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "departments": [
+                      {
+                        "id": 1,
+                        "name": "信息工程学院"
+                      }
+                    ],
+                    "majors": [
+                      {
+                        "id": 1,
+                        "name": "软件工程",
+                        "departmentId": 1
+                      }
+                    ],
+                    "classGroups": [
+                      {
+                        "id": 1,
+                        "name": "软件工程2023级1班",
+                        "grade": 2023,
+                        "majorId": 1,
+                        "departmentId": 1
+                      }
+                    ],
+                    "grades": [
+                      2023
+                    ],
+                    "statuses": [
+                      "ENROLLED",
+                      "SUSPENDED",
+                      "GRADUATED",
+                      "WITHDRAWN"
+                    ]
+                  },
+                  "error": null
                 }
               }
             }
@@ -903,8 +967,19 @@
           },
           "data": {
             "$ref": "#/components/schemas/Teacher"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "StudentResponse": {
         "type": "object",
@@ -915,8 +990,19 @@
           },
           "data": {
             "$ref": "#/components/schemas/Student"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "TeacherPageResponse": {
         "type": "object",
@@ -947,8 +1033,19 @@
                 "example": 1
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "StudentPageResponse": {
         "type": "object",
@@ -979,8 +1076,19 @@
                 "example": 1
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "DepartmentListResponse": {
         "type": "object",
@@ -994,8 +1102,19 @@
             "items": {
               "$ref": "#/components/schemas/Department"
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ClassGroupListResponse": {
         "type": "object",
@@ -1009,8 +1128,19 @@
             "items": {
               "$ref": "#/components/schemas/ClassGroup"
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "DeleteResponse": {
         "type": "object",
@@ -1027,8 +1157,19 @@
                 "example": true
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "ErrorResponse": {
         "type": "object",
@@ -1047,10 +1188,34 @@
               "message": {
                 "type": "string",
                 "example": "参数错误"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "page must not be less than 1"
+                ],
+                "description": "??????????????????"
               }
-            }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "data": {
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
           }
-        }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
       },
       "TeacherOptionsResponse": {
         "type": "object",
@@ -1093,6 +1258,145 @@
                 }
               }
             }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "?????? null"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "error"
+        ]
+      },
+      "StudentOptionsResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "error"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "departments",
+              "majors",
+              "classGroups",
+              "grades",
+              "statuses"
+            ],
+            "properties": {
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "信息工程学院"
+                    }
+                  }
+                }
+              },
+              "majors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "departmentId"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "软件工程"
+                    },
+                    "departmentId": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              },
+              "classGroups": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "grade",
+                    "majorId",
+                    "departmentId"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "软件工程2023级1班"
+                    },
+                    "grade": {
+                      "type": "integer",
+                      "example": 2023
+                    },
+                    "majorId": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "departmentId": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              },
+              "grades": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "example": 2023
+                }
+              },
+              "statuses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/StudentStatus"
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "成功时固定为 null"
           }
         }
       }

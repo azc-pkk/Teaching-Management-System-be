@@ -34,7 +34,7 @@ POST /api/auth/login
 
 ```json
 {
-  "username": "20230004",
+  "username": "202301020101",
   "password": "Student123456"
 }
 ```
@@ -73,7 +73,7 @@ POST /api/auth/register
 
 ```json
 {
-  "studentNo": "20230004",
+  "studentNo": "202301020101",
   "name": "测试学生004",
   "password": "Student123456"
 }

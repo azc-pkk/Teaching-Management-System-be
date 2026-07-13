@@ -1,6 +1,25 @@
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { StudentStatus } from '../../../../generated/prisma/client';
+
+const toBoolean = ({ value }: { value: unknown }) => {
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  return value;
+};
 
 export class QueryStudentDto {
   @IsOptional()
@@ -34,6 +53,28 @@ export class QueryStudentDto {
   @IsOptional()
   @IsEnum(StudentStatus)
   status?: StudentStatus;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  departmentId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  majorId?: number;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  activated?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  enabled?: boolean;
 }
 
 export class CreateStudentDto {

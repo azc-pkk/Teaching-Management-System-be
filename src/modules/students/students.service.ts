@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { StudentStatus } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   CreateStudentDto,
@@ -19,10 +20,26 @@ export class StudentsService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const keyword = query.keyword?.trim();
+    const userFilter =
+      query.enabled !== undefined
+        ? { is: { enabled: query.enabled } }
+        : query.activated === undefined
+          ? undefined
+          : query.activated
+            ? { isNot: null }
+            : { is: null };
     const where = {
       classGroupId: query.classGroupId,
       grade: query.grade,
       status: query.status,
+      classGroup:
+        query.departmentId || query.majorId
+          ? {
+              departmentId: query.departmentId,
+              majorId: query.majorId,
+            }
+          : undefined,
+      user: userFilter,
       OR: keyword
         ? [
             { studentNo: { contains: keyword } },
@@ -54,19 +71,25 @@ export class StudentsService {
               },
             },
           },
+          user: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              role: true,
+              enabled: true,
+            },
+          },
         },
       }),
       this.prisma.student.count({ where }),
     ]);
 
     return {
-      success: true,
-      data: {
-        list: students.map((student) => this.toStudentDto(student)),
-        page,
-        pageSize,
-        total,
-      },
+      list: students.map((student) => this.toStudentDto(student)),
+      page,
+      pageSize,
+      total,
     };
   }
 
@@ -90,6 +113,15 @@ export class StudentsService {
             },
           },
         },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            role: true,
+            enabled: true,
+          },
+        },
       },
     });
 
@@ -97,9 +129,44 @@ export class StudentsService {
       throw new NotFoundException('Student not found');
     }
 
+    return this.toStudentDto(student);
+  }
+
+  async findOptions() {
+    const [departments, majors, classGroups] = await this.prisma.$transaction([
+      this.prisma.department.findMany({
+        orderBy: [{ parentId: 'asc' }, { code: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+      this.prisma.major.findMany({
+        orderBy: { code: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          departmentId: true,
+        },
+      }),
+      this.prisma.classGroup.findMany({
+        orderBy: [{ grade: 'desc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          grade: true,
+          majorId: true,
+          departmentId: true,
+        },
+      }),
+    ]);
+
     return {
-      success: true,
-      data: this.toStudentDto(student),
+      departments,
+      majors,
+      classGroups,
+      grades: [...new Set(classGroups.map((classGroup) => classGroup.grade))],
+      statuses: Object.values(StudentStatus),
     };
   }
 
@@ -126,17 +193,23 @@ export class StudentsService {
             },
           },
         },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            role: true,
+            enabled: true,
+          },
+        },
       },
     });
 
-    return {
-      success: true,
-      data: this.toStudentDto(student),
-    };
+    return this.toStudentDto(student);
   }
 
   async update(id: number, updateStudentDto: UpdateStudentDto) {
-    await this.ensureStudentExists(id);
+    const current = await this.ensureStudentExists(id);
 
     if (updateStudentDto.studentNo) {
       await this.ensureStudentNoAvailable(updateStudentDto.studentNo, id);
@@ -144,37 +217,63 @@ export class StudentsService {
 
     await this.ensureClassGroupExists(updateStudentDto.classGroupId);
 
-    const student = await this.prisma.student.update({
-      where: { id },
-      data: updateStudentDto,
-      include: {
-        classGroup: {
-          include: {
-            department: {
-              select: {
-                id: true,
-                name: true,
+    const shouldSyncUser =
+      current.user !== null && /^\d+$/.test(current.user.username);
+    const targetUsername = updateStudentDto.studentNo ?? current.studentNo;
+
+    if (shouldSyncUser && targetUsername !== current.user?.username) {
+      await this.ensureUsernameAvailable(targetUsername, current.user?.id);
+    }
+
+    const student = await this.prisma.$transaction(async (tx) => {
+      if (shouldSyncUser && current.user) {
+        await tx.user.update({
+          where: { id: current.user.id },
+          data: {
+            username: targetUsername,
+            name: updateStudentDto.name,
+          },
+        });
+      }
+
+      return tx.student.update({
+        where: { id },
+        data: updateStudentDto,
+        include: {
+          classGroup: {
+            include: {
+              department: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
-            },
-            major: {
-              select: {
-                id: true,
-                name: true,
+              major: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
+          user: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              role: true,
+              enabled: true,
+            },
+          },
         },
-      },
+      });
     });
 
-    return {
-      success: true,
-      data: this.toStudentDto(student),
-    };
+    return this.toStudentDto(student);
   }
 
   async remove(id: number) {
-    await this.ensureStudentExists(id);
+    const student = await this.ensureStudentExists(id);
 
     const relatedCount = await this.countStudentReferences(id);
 
@@ -182,28 +281,44 @@ export class StudentsService {
       throw new ConflictException('Student is referenced by business data');
     }
 
-    await this.prisma.student.delete({ where: { id } });
+    await this.prisma.$transaction([
+      this.prisma.student.delete({ where: { id } }),
+      this.prisma.classGroup.update({
+        where: { id: student.classGroupId },
+        data: { studentCount: { decrement: 1 } },
+      }),
+    ]);
 
-    return {
-      success: true,
-      data: {
-        deleted: true,
-      },
-    };
+    return { deleted: true };
   }
 
   private async ensureStudentExists(id: number) {
     const student = await this.prisma.student.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        studentNo: true,
+        classGroupId: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
     });
 
     if (!student) {
       throw new NotFoundException('Student not found');
     }
+
+    return student;
   }
 
-  private async ensureStudentNoAvailable(studentNo: string, excludeId?: number) {
+  private async ensureStudentNoAvailable(
+    studentNo: string,
+    excludeId?: number,
+  ) {
     const student = await this.prisma.student.findUnique({
       where: { studentNo },
       select: { id: true },
@@ -211,6 +326,17 @@ export class StudentsService {
 
     if (student && student.id !== excludeId) {
       throw new ConflictException('Student number already exists');
+    }
+  }
+
+  private async ensureUsernameAvailable(username: string, excludeId?: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+
+    if (user && user.id !== excludeId) {
+      throw new ConflictException('Student number is already used as username');
     }
   }
 
@@ -230,12 +356,7 @@ export class StudentsService {
   }
 
   private async countStudentReferences(id: number) {
-    const [graduationReviews, users] = await this.prisma.$transaction([
-      this.prisma.graduationReview.count({ where: { studentId: id } }),
-      this.prisma.user.count({ where: { studentId: id } }),
-    ]);
-
-    return graduationReviews + users;
+    return this.prisma.graduationReview.count({ where: { studentId: id } });
   }
 
   private toStudentDto(student: {
@@ -253,7 +374,24 @@ export class StudentsService {
     grade: number;
     status: string;
     phone: string | null;
+    user: {
+      id: number;
+      username: string;
+      name: string;
+      role: string;
+      enabled: boolean;
+    } | null;
   }) {
+    const user = student.user
+      ? {
+          id: student.user.id,
+          username: student.user.username,
+          name: student.user.name,
+          role: student.user.role.toLowerCase(),
+          enabled: student.user.enabled,
+        }
+      : null;
+
     return {
       id: student.id,
       studentNo: student.studentNo,
@@ -267,6 +405,9 @@ export class StudentsService {
       majorName: student.classGroup.major.name,
       departmentId: student.classGroup.departmentId,
       departmentName: student.classGroup.department.name,
+      activated: Boolean(user),
+      enabled: user?.enabled ?? false,
+      user,
     };
   }
 }
