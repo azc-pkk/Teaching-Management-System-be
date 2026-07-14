@@ -89,7 +89,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return exception.message;
   }
 
+<<<<<<< HEAD
   private getErrorDetails(exception: unknown): { details?: string[] } {
+=======
+  private getErrorDetails(exception: unknown): { details?: unknown } {
+>>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
     if (!(exception instanceof HttpException)) {
       return {};
     }
@@ -101,20 +105,29 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     if ('details' in exceptionResponse) {
+<<<<<<< HEAD
       const details = this.normalizeDetails(exceptionResponse.details);
 
       return details ? { details } : {};
+=======
+      return { details: exceptionResponse.details };
+>>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
     }
 
     if (
       'message' in exceptionResponse &&
       Array.isArray(exceptionResponse.message)
     ) {
+<<<<<<< HEAD
       return { details: this.normalizeDetails(exceptionResponse.message) ?? [] };
+=======
+      return { details: exceptionResponse.message };
+>>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
     }
 
     return {};
   }
+<<<<<<< HEAD
 
   private normalizeDetails(details: unknown): string[] | undefined {
     if (details === null || details === undefined) {
@@ -127,4 +140,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     return [String(details)];
   }
+=======
+>>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
 }

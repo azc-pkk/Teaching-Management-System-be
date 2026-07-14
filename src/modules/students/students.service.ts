@@ -130,6 +130,7 @@ export class StudentsService {
     }
 
     return this.toStudentDto(student);
+<<<<<<< HEAD
   }
 
   async findOptions() {
@@ -168,6 +169,8 @@ export class StudentsService {
       grades: [...new Set(classGroups.map((classGroup) => classGroup.grade))],
       statuses: Object.values(StudentStatus),
     };
+=======
+>>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
   }
 
   async create(createStudentDto: CreateStudentDto) {

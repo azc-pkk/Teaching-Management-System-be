@@ -370,6 +370,7 @@
                 "example": "参数错误"
               },
               "details": {
+<<<<<<< HEAD
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -377,6 +378,9 @@
                 "example": [
                   "page must not be less than 1"
                 ],
+=======
+                "nullable": true,
+>>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
                 "description": "??????????????????"
               }
             },
