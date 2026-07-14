@@ -19,10 +19,21 @@ export class StudentsService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const keyword = query.keyword?.trim();
+    const userFilter = query.activated === true
+      ? { isNot: null }
+      : query.activated === false
+        ? { is: null }
+        : query.enabled !== undefined
+          ? { is: { enabled: query.enabled } }
+          : undefined;
     const where = {
       classGroupId: query.classGroupId,
       grade: query.grade,
       status: query.status,
+      classGroup: query.departmentId !== undefined || query.majorId !== undefined
+        ? { departmentId: query.departmentId, majorId: query.majorId }
+        : undefined,
+      user: userFilter,
       OR: keyword
         ? [
             { studentNo: { contains: keyword } },
@@ -53,6 +64,9 @@ export class StudentsService {
                 },
               },
             },
+          },
+          user: {
+            select: { id: true, username: true, enabled: true },
           },
         },
       }),
@@ -86,6 +100,9 @@ export class StudentsService {
               },
             },
           },
+        },
+        user: {
+          select: { id: true, username: true, enabled: true },
         },
       },
     });
@@ -236,6 +253,7 @@ export class StudentsService {
       departmentId: number;
       department: { name: string };
     };
+    user?: { id: number; username: string; enabled: boolean } | null;
     grade: number;
     status: string;
     phone: string | null;
@@ -253,6 +271,11 @@ export class StudentsService {
       majorName: student.classGroup.major.name,
       departmentId: student.classGroup.departmentId,
       departmentName: student.classGroup.department.name,
+      activated: student.user !== null && student.user !== undefined,
+      enabled: student.user?.enabled ?? false,
+      user: student.user
+        ? { id: student.user.id, username: student.user.username, enabled: student.user.enabled }
+        : null,
     };
   }
 }
