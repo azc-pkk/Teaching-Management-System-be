@@ -1,0 +1,472 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "教学过程管理系统 - 课程详情 API",
+    "version": "1.0.0",
+    "description": "课程详情及课程安排接口，可独立导入 Apifox。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "本地后端服务"
+    }
+  ],
+  "tags": [
+    {
+      "name": "课程详情",
+      "description": "课程信息及数据库中已有的考试、调课、教材征订和教学日志安排"
+    }
+  ],
+  "paths": {
+    "/base-data/courses/{id}": {
+      "get": {
+        "tags": [
+          "课程详情"
+        ],
+        "summary": "查询课程详情及安排",
+        "description": "聚合课程负责人、院系、考试、调课、教材征订和教学日志。semesterId 仅筛选具有学期字段的考试和教材征订。",
+        "operationId": "findCourseDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "课程 ID",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "description": "学期 ID；筛选考试与教材征订",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Unified_CourseDetail"
+                    },
+                    "error": {
+                      "nullable": true,
+                      "example": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Unified_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/Unified_NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Unified_BadRequest": {
+        "description": "请求参数错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Unified_ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unified_NotFound": {
+        "description": "数据不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Unified_ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Unified_CourseDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Unified_CourseSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "department": {
+                "$ref": "#/components/schemas/Unified_DepartmentBrief"
+              },
+              "director": {
+                "$ref": "#/components/schemas/Unified_TeacherBrief"
+              },
+              "arrangements": {
+                "type": "object",
+                "required": [
+                  "exams",
+                  "scheduleChanges",
+                  "textbookOrders",
+                  "teachingLogs"
+                ],
+                "properties": {
+                  "exams": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Unified_ExamArrangement"
+                    }
+                  },
+                  "scheduleChanges": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Unified_ScheduleChangeArrangement"
+                    }
+                  },
+                  "textbookOrders": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Unified_TextbookOrderArrangement"
+                    }
+                  },
+                  "teachingLogs": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Unified_TeachingLogArrangement"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Unified_CourseSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "credits"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "credits": {
+            "type": "number",
+            "format": "float"
+          },
+          "courseType": {
+            "type": "string",
+            "nullable": true
+          },
+          "departmentId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "departmentName": {
+            "type": "string",
+            "nullable": true
+          },
+          "directorId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "directorName": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Unified_DepartmentBrief": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "Unified_TeacherBrief": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "employeeNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Unified_ExamArrangement": {
+        "type": "object",
+        "required": [
+          "id",
+          "semesterId",
+          "classGroup",
+          "classroom",
+          "startTime",
+          "endTime"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "semesterId": {
+            "type": "integer"
+          },
+          "classGroup": {
+            "$ref": "#/components/schemas/Unified_ClassGroupBrief"
+          },
+          "classroom": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "campus": {
+                "type": "string",
+                "nullable": true
+              },
+              "building": {
+                "type": "string",
+                "nullable": true
+              },
+              "roomNo": {
+                "type": "string"
+              }
+            }
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invigilator": {
+            "$ref": "#/components/schemas/Unified_TeacherBrief"
+          }
+        }
+      },
+      "Unified_ScheduleChangeArrangement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "teacher": {
+            "$ref": "#/components/schemas/Unified_TeacherBrief"
+          },
+          "classGroup": {
+            "$ref": "#/components/schemas/Unified_ClassGroupBrief"
+          },
+          "hours": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "CANCELLED",
+              "COMPLETED"
+            ]
+          }
+        }
+      },
+      "Unified_TextbookOrderArrangement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "semesterId": {
+            "type": "integer"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "ORDERED",
+              "RECEIVED",
+              "CANCELLED"
+            ]
+          },
+          "textbook": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "isbn": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string",
+                "nullable": true
+              },
+              "publisher": {
+                "type": "string",
+                "nullable": true
+              },
+              "price": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "Unified_TeachingLogArrangement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "teacher": {
+            "$ref": "#/components/schemas/Unified_TeacherBrief"
+          },
+          "classGroup": {
+            "$ref": "#/components/schemas/Unified_ClassGroupBrief"
+          },
+          "lessonDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "content": {
+            "type": "string"
+          },
+          "attendanceSummary": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "APPROVED",
+              "REJECTED"
+            ]
+          }
+        }
+      },
+      "Unified_ErrorResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "error"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "data": {
+            "nullable": true,
+            "example": null
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "Validation failed"
+              },
+              "details": {
+                "type": "array",
+                "items": {},
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "Unified_ClassGroupBrief": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "grade"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

@@ -52,13 +52,21 @@ export class QueryClassroomRequestDto {
 }
 
 export class CreateClassroomRequestDto {
+  /** Compatibility field only. The authenticated user's sys_user.id is used. */
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  applicantId!: number;
+  @Min(1)
+  applicantId?: number;
 
   @Type(() => Number)
   @IsInt()
   classroomId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  participantCount!: number;
 
   @IsDateString()
   startTime!: string;
@@ -80,12 +88,13 @@ export class UpdateClassroomRequestDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  applicantId?: number;
+  classroomId?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  classroomId?: number;
+  @Min(1)
+  participantCount?: number;
 
   @IsOptional()
   @IsDateString()
@@ -100,20 +109,11 @@ export class UpdateClassroomRequestDto {
   @IsNotEmpty()
   @MaxLength(255)
   purpose?: string;
-
-  @IsOptional()
-  @IsEnum(WorkflowStatus)
-  status?: WorkflowStatus;
 }
 
 export class UpdateClassroomRequestStatusDto {
   @IsEnum(WorkflowStatus)
   status!: WorkflowStatus;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  operatorId?: number;
 
   @IsOptional()
   @IsString()

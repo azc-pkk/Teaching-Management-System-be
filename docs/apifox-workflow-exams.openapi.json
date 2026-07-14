@@ -21,6 +21,7 @@
       "get": {
         "tags": ["教室借用申请"],
         "summary": "分页查询教室借用申请",
+        "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "$ref": "#/components/parameters/Page" },
           { "$ref": "#/components/parameters/PageSize" },
@@ -64,12 +65,15 @@
           "200": {
             "$ref": "#/components/responses/ClassroomRequestPageSuccess"
           },
-          "400": { "$ref": "#/components/responses/BadRequest" }
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       },
       "post": {
         "tags": ["教室借用申请"],
         "summary": "创建教室借用申请",
+        "description": "applicantId 统一为 sys_user.id，并由 Bearer Token 自动确定。仅教师和学生可创建；普通申请最多提前 7 天。",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -78,8 +82,8 @@
                 "$ref": "#/components/schemas/CreateClassroomRequest"
               },
               "example": {
-                "applicantId": 1,
                 "classroomId": 1,
+                "participantCount": 30,
                 "startTime": "2026-09-10T06:00:00.000Z",
                 "endTime": "2026-09-10T08:00:00.000Z",
                 "purpose": "学院教学研讨会"
@@ -90,6 +94,8 @@
         "responses": {
           "201": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
       }
@@ -99,14 +105,18 @@
       "get": {
         "tags": ["教室借用申请"],
         "summary": "查询教室借用申请详情",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       },
       "patch": {
         "tags": ["教室借用申请"],
         "summary": "修改教室借用申请",
+        "description": "仅申请人本人可修改 DRAFT 状态申请。",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -120,6 +130,8 @@
         "responses": {
           "200": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
@@ -127,8 +139,12 @@
       "delete": {
         "tags": ["教室借用申请"],
         "summary": "删除教室借用申请",
+        "description": "仅申请人本人可删除 DRAFT 状态申请。",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/DeleteSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
@@ -137,6 +153,8 @@
       "patch": {
         "tags": ["教室借用申请"],
         "summary": "审批或变更教室借用申请状态",
+        "description": "允许 DRAFT→PENDING、PENDING→APPROVED/REJECTED，或申请人将尚未开始的 PENDING 申请取消。只有教务管理员可审批/驳回；REJECTED 时 comment 必填。",
+        "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/Id" }],
         "requestBody": {
           "required": true,
@@ -145,7 +163,6 @@
               "schema": { "$ref": "#/components/schemas/UpdateWorkflowStatus" },
               "example": {
                 "status": "APPROVED",
-                "operatorId": 1,
                 "comment": "同意借用"
               }
             }
@@ -154,7 +171,10 @@
         "responses": {
           "200": { "$ref": "#/components/responses/ClassroomRequestSuccess" },
           "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
         }
       }
     },
@@ -413,6 +433,13 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "parameters": {
       "Id": {
         "name": "id",
@@ -448,7 +475,11 @@
         "type": "object",
         "required": ["code", "message"],
         "properties": {
-          "code": { "type": "string", "example": "VALIDATION_ERROR" },
+          "code": {
+            "type": "string",
+            "example": "CLASSROOM_TIME_CONFLICT",
+            "description": "教室申请业务错误码包括 APPLICANT_MISMATCH、APPLICANT_ROLE_FORBIDDEN、APPROVAL_FORBIDDEN、REQUEST_OWNER_REQUIRED、REJECTION_COMMENT_REQUIRED、INVALID_STATUS_TRANSITION、REQUEST_NOT_EDITABLE、REQUEST_NOT_DELETABLE、REQUEST_ALREADY_STARTED、INVALID_TIME_RANGE、PAST_START_TIME、ADVANCE_LIMIT_EXCEEDED、CAPACITY_EXCEEDED、CLASSROOM_NOT_AVAILABLE、CLASSROOM_TIME_CONFLICT、APPLICANT_TIME_CONFLICT"
+          },
           "message": { "type": "string", "example": "参数错误" },
           "details": {
             "type": "array",
@@ -484,30 +515,37 @@
       "CreateClassroomRequest": {
         "type": "object",
         "required": [
-          "applicantId",
           "classroomId",
+          "participantCount",
           "startTime",
           "endTime",
           "purpose"
         ],
         "properties": {
-          "applicantId": { "type": "integer" },
+          "applicantId": {
+            "type": "integer",
+            "description": "兼容字段；如传入必须等于 Bearer Token 对应的 sys_user.id，建议省略"
+          },
           "classroomId": { "type": "integer" },
+          "participantCount": { "type": "integer", "minimum": 1 },
           "startTime": { "type": "string", "format": "date-time" },
           "endTime": { "type": "string", "format": "date-time" },
           "purpose": { "type": "string", "maxLength": 255 },
-          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+          "status": {
+            "type": "string",
+            "enum": ["DRAFT", "PENDING"],
+            "default": "DRAFT"
+          }
         }
       },
       "UpdateClassroomRequest": {
         "type": "object",
         "properties": {
-          "applicantId": { "type": "integer" },
           "classroomId": { "type": "integer" },
+          "participantCount": { "type": "integer", "minimum": 1 },
           "startTime": { "type": "string", "format": "date-time" },
           "endTime": { "type": "string", "format": "date-time" },
-          "purpose": { "type": "string", "maxLength": 255 },
-          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+          "purpose": { "type": "string", "maxLength": 255 }
         }
       },
       "ClassroomRequest": {
@@ -519,6 +557,7 @@
           "applicantUsername",
           "classroomId",
           "classroomRoomNo",
+          "participantCount",
           "startTime",
           "endTime",
           "purpose",
@@ -535,10 +574,46 @@
           "classroomBuilding": { "type": "string", "nullable": true },
           "classroomType": { "type": "string", "nullable": true },
           "classroomCapacity": { "type": "integer" },
+          "classroomStatus": {
+            "type": "string",
+            "enum": ["AVAILABLE", "OCCUPIED", "MAINTENANCE"]
+          },
+          "participantCount": { "type": "integer", "minimum": 1 },
           "startTime": { "type": "string", "format": "date-time" },
           "endTime": { "type": "string", "format": "date-time" },
           "purpose": { "type": "string" },
-          "status": { "$ref": "#/components/schemas/WorkflowStatus" }
+          "status": { "$ref": "#/components/schemas/WorkflowStatus" },
+          "latestApproval": {
+            "allOf": [{ "$ref": "#/components/schemas/ApprovalTimelineItem" }],
+            "nullable": true
+          },
+          "approvalHistory": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ApprovalTimelineItem" }
+          }
+        }
+      },
+      "ApprovalTimelineItem": {
+        "type": "object",
+        "required": ["id", "action", "operator", "createdAt"],
+        "properties": {
+          "id": { "type": "integer" },
+          "action": {
+            "type": "string",
+            "enum": ["SUBMIT", "APPROVE", "REJECT", "RETURN", "CANCEL"]
+          },
+          "comment": { "type": "string", "nullable": true },
+          "operator": {
+            "type": "object",
+            "required": ["id", "username", "name", "role"],
+            "properties": {
+              "id": { "type": "integer" },
+              "username": { "type": "string" },
+              "name": { "type": "string" },
+              "role": { "type": "string" }
+            }
+          },
+          "createdAt": { "type": "string", "format": "date-time" }
         }
       },
       "UpdateWorkflowStatus": {
@@ -546,11 +621,11 @@
         "required": ["status"],
         "properties": {
           "status": { "$ref": "#/components/schemas/WorkflowStatus" },
-          "operatorId": {
-            "type": "integer",
-            "description": "审批操作用户 ID；传入后写入审批记录"
-          },
-          "comment": { "type": "string", "maxLength": 500 }
+          "comment": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "驳回（REJECTED）时必填且不能为空白"
+          }
         }
       },
       "CreateScheduleChange": {
@@ -846,6 +921,22 @@
       },
       "BadRequest": {
         "description": "请求参数或关联数据错误",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Bearer Token 缺失、无效或过期",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "当前用户角色或身份无权执行操作",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }

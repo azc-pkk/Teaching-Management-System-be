@@ -1,8 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { BaseDataService } from './base-data.service';
 import {
   ClassGroupQueryDto,
   ClassroomQueryDto,
+  CourseDetailQueryDto,
   CourseQueryDto,
   DepartmentQueryDto,
   MajorQueryDto,
@@ -30,6 +31,14 @@ export class BaseDataController {
   @Get('courses')
   findCourses(@Query() query: CourseQueryDto) {
     return this.baseDataService.findCourses(query);
+  }
+
+  @Get('courses/:id')
+  findCourseDetail(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: CourseDetailQueryDto,
+  ) {
+    return this.baseDataService.findCourseDetail(id, query);
   }
 
   @Get('classrooms')

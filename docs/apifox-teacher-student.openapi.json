@@ -554,7 +554,6 @@
                     ]
                   },
                   "error": null
-<<<<<<< HEAD
                 }
               }
             }
@@ -618,8 +617,6 @@
                     ]
                   },
                   "error": null
-=======
->>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
                 }
               }
             }
@@ -1193,7 +1190,6 @@
                 "example": "参数错误"
               },
               "details": {
-<<<<<<< HEAD
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -1201,9 +1197,6 @@
                 "example": [
                   "page must not be less than 1"
                 ],
-=======
-                "nullable": true,
->>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
                 "description": "??????????????????"
               }
             },
@@ -1271,7 +1264,6 @@
             "nullable": true,
             "example": null,
             "description": "?????? null"
-<<<<<<< HEAD
           }
         },
         "required": [
@@ -1405,8 +1397,6 @@
             "nullable": true,
             "example": null,
             "description": "成功时固定为 null"
-=======
->>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
           }
         },
         "required": [

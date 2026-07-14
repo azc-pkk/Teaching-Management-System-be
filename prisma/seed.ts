@@ -726,6 +726,7 @@ async function main() {
     ? await prisma.classroomRequest.update({
         where: { id: existingRequest.id },
         data: {
+          participantCount: 30,
           endTime: new Date('2026-06-20T16:00:00+08:00'),
           purpose: '课程答疑',
           status: WorkflowStatus.APPROVED,
@@ -735,6 +736,7 @@ async function main() {
         data: {
           applicantId: users[4]!.id,
           classroomId: classroom2.id,
+          participantCount: 30,
           startTime: requestStart,
           endTime: new Date('2026-06-20T16:00:00+08:00'),
           purpose: '课程答疑',
@@ -1215,6 +1217,7 @@ async function main() {
         ? await prisma.classroomRequest.update({
             where: { id: existing.id },
             data: {
+              participantCount: 10,
               endTime,
               purpose: `批量教室申请${index}`,
               status:
@@ -1227,6 +1230,7 @@ async function main() {
             data: {
               applicantId: applicant.id,
               classroomId: classroom.id,
+              participantCount: 10,
               startTime,
               endTime,
               purpose: `批量教室申请${index}`,

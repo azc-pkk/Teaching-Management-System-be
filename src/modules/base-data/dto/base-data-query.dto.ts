@@ -54,6 +54,14 @@ export class CourseQueryDto {
   keyword?: string;
 }
 
+export class CourseDetailQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  semesterId?: number;
+}
+
 export class ClassroomQueryDto {
   @IsOptional()
   @IsString()

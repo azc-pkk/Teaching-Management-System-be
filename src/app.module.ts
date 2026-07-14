@@ -8,12 +8,9 @@ import { BaseDataModule } from './modules/base-data/base-data.module';
 import { ClassroomRequestsModule } from './modules/classroom-requests/classroom-requests.module';
 import { ClassroomsModule } from './modules/classrooms/classrooms.module';
 import { ExamsModule } from './modules/exams/exams.module';
-import { GraduationModule } from './modules/graduation/graduation.module';
 import { ScheduleChangesModule } from './modules/schedule-changes/schedule-changes.module';
 import { StudentsModule } from './modules/students/students.module';
-import { TeachingLogsModule } from './modules/teaching-logs/teaching-logs.module';
 import { TeachersModule } from './modules/teachers/teachers.module';
-import { TextbooksModule } from './modules/textbooks/textbooks.module';
 import { DatabaseModule } from './database/database.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
@@ -30,9 +27,6 @@ import { ApiResponseInterceptor } from './common/interceptors/api-response.inter
     ClassroomRequestsModule,
     ScheduleChangesModule,
     ExamsModule,
-    TextbooksModule,
-    GraduationModule,
-    TeachingLogsModule,
   ],
   controllers: [AppController],
   providers: [

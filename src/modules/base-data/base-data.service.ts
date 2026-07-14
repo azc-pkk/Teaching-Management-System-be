@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ClassroomStatus } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   ClassGroupQueryDto,
   ClassroomQueryDto,
+  CourseDetailQueryDto,
   CourseQueryDto,
   DepartmentQueryDto,
   MajorQueryDto,
@@ -131,6 +132,124 @@ export class BaseDataService {
       directorId: course.directorId,
       directorName: course.director?.name ?? null,
     }));
+  }
+
+  async findCourseDetail(id: number, query: CourseDetailQueryDto) {
+    const course = await this.prisma.course.findUnique({
+      where: { id },
+      include: {
+        department: {
+          select: { id: true, code: true, name: true },
+        },
+        director: {
+          select: { id: true, employeeNo: true, name: true, title: true },
+        },
+        exams: {
+          where: { semesterId: query.semesterId },
+          orderBy: { startTime: 'asc' },
+          include: {
+            classGroup: { select: { id: true, name: true, grade: true } },
+            classroom: {
+              select: {
+                id: true,
+                campus: true,
+                building: true,
+                roomNo: true,
+              },
+            },
+            invigilator: {
+              select: { id: true, employeeNo: true, name: true },
+            },
+          },
+        },
+        scheduleChanges: {
+          orderBy: { id: 'desc' },
+          include: {
+            teacher: {
+              select: { id: true, employeeNo: true, name: true },
+            },
+            classGroup: { select: { id: true, name: true, grade: true } },
+          },
+        },
+        textbookOrders: {
+          where: { semesterId: query.semesterId },
+          orderBy: [{ semesterId: 'desc' }, { id: 'desc' }],
+          include: {
+            textbook: {
+              select: {
+                id: true,
+                isbn: true,
+                name: true,
+                author: true,
+                publisher: true,
+                price: true,
+              },
+            },
+          },
+        },
+        teachingLogs: {
+          orderBy: { lessonDate: 'desc' },
+          include: {
+            teacher: {
+              select: { id: true, employeeNo: true, name: true },
+            },
+            classGroup: { select: { id: true, name: true, grade: true } },
+          },
+        },
+      },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    return {
+      id: course.id,
+      code: course.code,
+      name: course.name,
+      credits: Number(course.credits),
+      courseType: course.courseType,
+      department: course.department,
+      director: course.director,
+      arrangements: {
+        exams: course.exams.map((exam) => ({
+          id: exam.id,
+          semesterId: exam.semesterId,
+          classGroup: exam.classGroup,
+          classroom: exam.classroom,
+          startTime: exam.startTime.toISOString(),
+          endTime: exam.endTime.toISOString(),
+          invigilator: exam.invigilator,
+        })),
+        scheduleChanges: course.scheduleChanges.map((change) => ({
+          id: change.id,
+          teacher: change.teacher,
+          classGroup: change.classGroup,
+          hours: Number(change.hours),
+          reason: change.reason,
+          status: change.status,
+        })),
+        textbookOrders: course.textbookOrders.map((order) => ({
+          id: order.id,
+          semesterId: order.semesterId,
+          quantity: order.quantity,
+          status: order.status,
+          textbook: {
+            ...order.textbook,
+            price: Number(order.textbook.price),
+          },
+        })),
+        teachingLogs: course.teachingLogs.map((log) => ({
+          id: log.id,
+          teacher: log.teacher,
+          classGroup: log.classGroup,
+          lessonDate: log.lessonDate.toISOString().slice(0, 10),
+          content: log.content,
+          attendanceSummary: log.attendanceSummary,
+          status: log.status,
+        })),
+      },
+    };
   }
 
   async findClassrooms(query: ClassroomQueryDto) {

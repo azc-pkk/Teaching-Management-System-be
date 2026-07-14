@@ -35,7 +35,6 @@ export class AuthService {
       return this.loginFailed();
     }
 
-<<<<<<< HEAD
     if (user.username !== username) {
       user = await this.prisma.user.update({
         where: { id: user.id },
@@ -47,8 +46,6 @@ export class AuthService {
       });
     }
 
-=======
->>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
     return {
       token: this.createDemoToken(user.id, user.username, user.role),
       user: {
