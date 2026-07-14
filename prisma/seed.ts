@@ -14,12 +14,15 @@ import {
   WorkflowStatus,
 } from '../generated/prisma/client.js';
 
+// 从项目根目录的 .env 读取 MySQL 连接地址。
+// 格式示例：mysql://用户名:URL编码后的密码@localhost:3306/数据库名
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
   throw new Error('缺少 DATABASE_URL，请先配置项目根目录下的 .env');
 }
 
+// 将连接地址拆分为主机、端口、账号、密码和数据库名称。
 const parsedUrl = new URL(databaseUrl);
 const database = parsedUrl.pathname.replace(/^\//, '');
 
@@ -27,24 +30,84 @@ if (!database) {
   throw new Error('DATABASE_URL 中缺少数据库名称');
 }
 
+// Prisma 7 通过数据库驱动适配器连接 MySQL/MariaDB。
 const adapter = new PrismaMariaDb({
   host: parsedUrl.hostname,
   port: Number(parsedUrl.port || 3306),
   user: decodeURIComponent(parsedUrl.username),
   password: decodeURIComponent(parsedUrl.password),
   database,
+  // Local MySQL 9.x commonly uses caching_sha2_password. Allow the connector
+  // to retrieve the server RSA public key for password authentication.
+  allowPublicKeyRetrieval: true,
   connectionLimit: 5,
 });
 
+// 整个脚本共用一个 Prisma Client，脚本结束时会主动断开连接。
 const prisma = new PrismaClient({ adapter });
+
+// .env 中的 SEED_DEFAULT_PASSWORD 优先；未配置时使用后面的默认测试密码。
 const defaultPassword = process.env.SEED_DEFAULT_PASSWORD ?? 'TmsSeed#2026!';
 
+// 学号编码规则：年级4位 + 学院2位 + 专业2位 + 班级2位 + 班内号2位，共12位。
+// 当前测试代码：信息工程学院=01，计算机专业=01，软件工程专业=02。
+const seedCollegeCode = '01';
+
+function studentNoPart(value: string | number, length: number, label: string) {
+  const part = String(value);
+  if (!/^\d+$/.test(part) || part.length > length) {
+    throw new Error(`${label}必须是最多${length}位数字，当前值：${part}`);
+  }
+  return part.padStart(length, '0');
+}
+
+function buildStudentNo(grade: number, majorCode: string, classCode: string, withinClassNo: number) {
+  return [
+    studentNoPart(grade, 4, '年级'),
+    studentNoPart(seedCollegeCode, 2, '学院代码'),
+    studentNoPart(majorCode, 2, '专业代码'),
+    studentNoPart(classCode, 2, '班级代码'),
+    studentNoPart(withinClassNo, 2, '班内号'),
+  ].join('');
+}
+
+type SeedStudentInput = {
+  legacyStudentNo: string;
+  studentNo: string;
+  name: string;
+  classGroupId: number;
+  grade: number;
+  status: (typeof StudentStatus)[keyof typeof StudentStatus];
+  phone: string;
+};
+
+// 优先更新新学号；若只找到旧 seed 学号，则原位改号，避免重复执行后产生两名学生。
+async function upsertSeedStudent(input: SeedStudentInput) {
+  const { legacyStudentNo, ...data } = input;
+  const existing = await prisma.student.findUnique({ where: { studentNo: data.studentNo } });
+  if (existing) {
+    return prisma.student.update({ where: { id: existing.id }, data });
+  }
+
+  const legacy = await prisma.student.findUnique({ where: { studentNo: legacyStudentNo } });
+  if (legacy) {
+    return prisma.student.update({ where: { id: legacy.id }, data });
+  }
+
+  return prisma.student.create({ data });
+}
+
+// main 是 seed 的主流程入口；标记为 async 后，内部才能用 await 按顺序等待数据库操作完成。
 async function main() {
   console.log('开始写入教学过程管理系统测试数据...');
 
+  // 数据库不保存明文密码。每次执行 seed 都生成新盐值，最终格式为：
+  // scrypt$盐值$哈希值；登录接口必须按同样的 scrypt 规则验证密码。
   const passwordSalt = randomBytes(16).toString('hex');
   const passwordHash = `scrypt$${passwordSalt}$${scryptSync(defaultPassword, passwordSalt, 64).toString('hex')}`;
 
+  // 一、基础组织数据
+  // 部门使用 code 作为业务唯一键。upsert 会在记录存在时更新，不存在时创建。
   const college = await prisma.department.upsert({
     where: { code: 'D001' },
     update: { name: '信息工程学院', type: 'COLLEGE' },
@@ -63,6 +126,9 @@ async function main() {
     create: { code: 'D003', name: '软件工程系', type: 'DEPARTMENT', parentId: college.id },
   });
 
+
+  // 二、教师数据
+  // 教师通过 departmentId 关联部门，因此必须在部门写入完成后再创建。
   const teacher1 = await prisma.teacher.upsert({
     where: { employeeNo: 'T0001' },
     update: {
@@ -158,12 +224,16 @@ async function main() {
     },
   });
 
+  // 教师创建并取得 id 后，再反向设置部门负责人，避免外键引用尚不存在的教师。
   await Promise.all([
     prisma.department.update({ where: { id: college.id }, data: { managerId: teacher5.id } }),
     prisma.department.update({ where: { id: computerDepartment.id }, data: { managerId: teacher1.id } }),
     prisma.department.update({ where: { id: softwareDepartment.id }, data: { managerId: teacher2.id } }),
   ]);
 
+
+  // 三、专业和班级数据
+  // 专业依赖所属部门；班级继续依赖专业、部门和担任辅导员的教师。
   const computerMajor = await prisma.major.upsert({
     where: { code: 'CS' },
     update: { name: '计算机科学与技术', departmentId: computerDepartment.id, durationYears: 4 },
@@ -176,6 +246,7 @@ async function main() {
     create: { code: 'SE', name: '软件工程', departmentId: softwareDepartment.id, durationYears: 4 },
   });
 
+  // ClassGroup 的班级名称没有直接用于 upsert 的唯一约束，因此先查询再更新或创建。
   const computerClassExisting = await prisma.classGroup.findFirst({ where: { name: '计算机2301班' } });
   const computerClass = computerClassExisting
     ? await prisma.classGroup.update({
@@ -222,39 +293,45 @@ async function main() {
         },
       });
 
+
+  // 四、基础学生数据
+  // 学号采用“年级4位 + 学院2位 + 专业2位 + 班级2位 + 班内号2位”的12位格式。
   const students = await Promise.all([
-    prisma.student.upsert({
-      where: { studentNo: '20230001' },
-      update: { name: '测试学生001', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000001' },
-      create: { studentNo: '20230001', name: '测试学生001', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000001' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230001',
+      studentNo: buildStudentNo(2023, '01', '01', 1),
+      name: '测试学生001', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000001',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230002' },
-      update: { name: '测试学生002', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000002' },
-      create: { studentNo: '20230002', name: '测试学生002', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000002' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230002',
+      studentNo: buildStudentNo(2023, '01', '01', 2),
+      name: '测试学生002', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000002',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230003' },
-      update: { name: '测试学生003', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.SUSPENDED, phone: '13900000003' },
-      create: { studentNo: '20230003', name: '测试学生003', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.SUSPENDED, phone: '13900000003' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230003',
+      studentNo: buildStudentNo(2023, '01', '01', 3),
+      name: '测试学生003', classGroupId: computerClass.id, grade: 2023, status: StudentStatus.SUSPENDED, phone: '13900000003',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230004' },
-      update: { name: '测试学生004', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000004' },
-      create: { studentNo: '20230004', name: '测试学生004', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000004' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230004',
+      studentNo: buildStudentNo(2023, '02', '01', 1),
+      name: '测试学生004', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000004',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230005' },
-      update: { name: '测试学生005', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000005' },
-      create: { studentNo: '20230005', name: '测试学生005', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000005' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230005',
+      studentNo: buildStudentNo(2023, '02', '01', 2),
+      name: '测试学生005', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.ENROLLED, phone: '13900000005',
     }),
-    prisma.student.upsert({
-      where: { studentNo: '20230006' },
-      update: { name: '测试学生006', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.GRADUATED, phone: '13900000006' },
-      create: { studentNo: '20230006', name: '测试学生006', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.GRADUATED, phone: '13900000006' },
+    upsertSeedStudent({
+      legacyStudentNo: '20230006',
+      studentNo: buildStudentNo(2023, '02', '01', 3),
+      name: '测试学生006', classGroupId: softwareClass.id, grade: 2023, status: StudentStatus.GRADUATED, phone: '13900000006',
     }),
   ]);
 
+
+  // 五、系统登录账号
+  // 账号保存角色和密码哈希；部分账号还通过 teacherId 或 studentId 关联教师/学生资料。
   const userInputs = [
     { username: 'admin', name: '系统管理员', role: UserRole.ADMIN },
     { username: 'academic_admin', name: '教务处管理员', role: UserRole.ACADEMIC },
@@ -268,6 +345,7 @@ async function main() {
 
   const users = [];
   for (const input of userInputs) {
+    // 以 username 为唯一键。重新执行 seed 会同步更新密码、角色、启用状态和人员关联。
     users.push(
       await prisma.user.upsert({
         where: { username: input.username },
@@ -292,9 +370,12 @@ async function main() {
     );
   }
 
-  // 图片仅定义semesterId，没有定义Semester实体，因此使用固定测试学期编号。
+  // 当前 schema 只有 semesterId 字段，没有单独的 Semester 实体，因此暂用固定测试学期编号。
+  // 将来增加 Semester 表后，应先创建学期，再改用真实的 semester.id。
   const semesterId = 1;
 
+  // 六、核心业务样例
+  // 先写入教室、课程、考试和教材，再创建依赖它们的申请、审核和教学日志。
   const classroom1 = await prisma.classroom.upsert({
     where: { roomNo: 'A101' },
     update: { campus: '主校区', building: '第一教学楼', type: '多媒体教室', capacity: 60, area: 85, status: ClassroomStatus.AVAILABLE },
@@ -364,6 +445,7 @@ async function main() {
     create: { isbn: '9787300000002', name: '数据库系统原理', author: '李敏', publisher: '示例大学出版社', price: 58 },
   });
 
+  // 部分业务表缺少合适的唯一约束，使用 findFirst + update/create 实现可重复写入。
   const existingOrder = await prisma.textbookOrder.findFirst({
     where: { semesterId, courseId: course1.id, textbookId: textbook1.id },
   });
@@ -425,6 +507,7 @@ async function main() {
   }
 
   const academicUser = users[1]!;
+  // 审批记录用业务类型、业务记录、操作人和动作组合判断是否已经存在。
   const approvalInputs = [
     { businessType: 'CLASSROOM_REQUEST', businessId: classroomRequest.id, action: ApprovalAction.APPROVE, comment: '教室时间无冲突，同意申请' },
     { businessType: 'SCHEDULE_CHANGE', businessId: scheduleChange.id, action: ApprovalAction.SUBMIT, comment: '等待系部审核' },
@@ -442,6 +525,7 @@ async function main() {
     }
   }
 
+  // 操作日志用于记录“谁在什么模块对哪条数据做了什么”，便于审计和问题追踪。
   const operationInputs = [
     { userId: users[0]!.id, module: 'SYSTEM', action: 'SEED_DATA', targetId: null },
     { userId: users[4]!.id, module: 'CLASSROOM_REQUEST', action: 'CREATE', targetId: classroomRequest.id },
@@ -455,7 +539,9 @@ async function main() {
     }
   }
 
-  // 批量场景数据：用于分页、筛选、统计、审批流和边界测试。
+  // 七、批量场景数据
+  // 用于分页、筛选、统计、审批流和边界测试；数据按序号规律生成，方便稳定复现。
+  // 先补充批量教师，后续课程、考试、调课和教学日志会循环引用这些教师。
   const allTeachers = [teacher1, teacher2, teacher3, teacher4, teacher5];
   for (let index = 6; index <= 12; index += 1) {
     const employeeNo = `T${String(index).padStart(4, '0')}`;
@@ -481,6 +567,7 @@ async function main() {
     allTeachers.push(teacher);
   }
 
+  // 增加多个测试班级，使学生分页、班级筛选和跨班级统计具有足够样本。
   const extraClassSpecs = [
     { name: '计算机2302班', grade: 2023, majorId: computerMajor.id, departmentId: computerDepartment.id, counselorId: teacher3.id },
     { name: '软件工程2302班', grade: 2023, majorId: softwareMajor.id, departmentId: softwareDepartment.id, counselorId: teacher4.id },
@@ -498,41 +585,42 @@ async function main() {
   }
   const allClassGroups = [computerClass, softwareClass, ...extraClassGroups];
 
+  // 生成 120 名学生，平均分配到4个批量班级，每班30人。
+  const bulkStudentClassSpecs = [
+    { classGroup: extraClassGroups[0]!, grade: 2023, majorCode: '01', classCode: '02' },
+    { classGroup: extraClassGroups[1]!, grade: 2023, majorCode: '02', classCode: '02' },
+    { classGroup: extraClassGroups[2]!, grade: 2024, majorCode: '01', classCode: '01' },
+    { classGroup: extraClassGroups[3]!, grade: 2024, majorCode: '02', classCode: '01' },
+  ];
   const bulkStudents = [];
   for (let index = 1; index <= 120; index += 1) {
-    const studentNo = `2024${String(index).padStart(4, '0')}`;
-    const classGroup = allClassGroups[(index - 1) % allClassGroups.length]!;
+    const classSpec = bulkStudentClassSpecs[(index - 1) % bulkStudentClassSpecs.length]!;
+    const withinClassNo = Math.floor((index - 1) / bulkStudentClassSpecs.length) + 1;
+    const studentNo = buildStudentNo(classSpec.grade, classSpec.majorCode, classSpec.classCode, withinClassNo);
     const status = index % 40 === 0
       ? StudentStatus.WITHDRAWN
       : index % 25 === 0
         ? StudentStatus.SUSPENDED
         : StudentStatus.ENROLLED;
     bulkStudents.push(
-      await prisma.student.upsert({
-        where: { studentNo },
-        update: {
-          name: `批量测试学生${String(index).padStart(3, '0')}`,
-          classGroupId: classGroup.id,
-          grade: 2024,
-          status,
-          phone: `1391000${String(index).padStart(4, '0')}`,
-        },
-        create: {
-          studentNo,
-          name: `批量测试学生${String(index).padStart(3, '0')}`,
-          classGroupId: classGroup.id,
-          grade: 2024,
-          status,
-          phone: `1391000${String(index).padStart(4, '0')}`,
-        },
+      await upsertSeedStudent({
+        legacyStudentNo: `2024${String(index).padStart(4, '0')}`,
+        studentNo,
+        name: `批量测试学生${String(index).padStart(3, '0')}`,
+        classGroupId: classSpec.classGroup.id,
+        grade: classSpec.grade,
+        status,
+        phone: `1391000${String(index).padStart(4, '0')}`,
       }),
     );
   }
+  // 学生写入完成后重新统计每个班的实际人数，保证 studentCount 与学生表一致。
   for (const classGroup of allClassGroups) {
     const studentCount = await prisma.student.count({ where: { classGroupId: classGroup.id } });
     await prisma.classGroup.update({ where: { id: classGroup.id }, data: { studentCount } });
   }
 
+  // 批量课程、教室和教材分别以课程编码、教室号和 ISBN 作为稳定的业务唯一键。
   const bulkCourses = [];
   for (let index = 1; index <= 15; index += 1) {
     const code = `TEST${String(index).padStart(3, '0')}`;
@@ -560,6 +648,7 @@ async function main() {
     );
   }
 
+  // 批量教室包含可用和维护中状态，用于容量、校区、类型及状态筛选测试。
   const bulkClassrooms = [];
   for (let index = 1; index <= 12; index += 1) {
     const roomNo = `C${String(300 + index)}`;
@@ -587,6 +676,7 @@ async function main() {
     );
   }
 
+  // 批量教材使用稳定 ISBN，重复执行时只会更新同一本教材，不会持续增加重复记录。
   const bulkTextbooks = [];
   for (let index = 1; index <= 10; index += 1) {
     const isbn = `9787000${String(index).padStart(6, '0')}`;
@@ -599,6 +689,7 @@ async function main() {
     );
   }
 
+  // 考试按“学期 + 课程 + 班级 + 开始时间”查重，避免重复执行时产生相同考试。
   const bulkExams = [];
   for (let index = 1; index <= 18; index += 1) {
     const course = bulkCourses[(index - 1) % bulkCourses.length]!;
@@ -634,6 +725,7 @@ async function main() {
     }
   }
 
+  // 批量生成已通过和已拒绝的教室申请，用于审批状态筛选测试。
   const bulkRequests = [];
   for (let index = 1; index <= 20; index += 1) {
     const applicant = users[4 + (index % 2)]!;
@@ -650,6 +742,7 @@ async function main() {
     );
   }
 
+  // 批量生成待审批和已拒绝的调课记录，用于调课流程与权限测试。
   const bulkChanges = [];
   for (let index = 1; index <= 15; index += 1) {
     const teacher = allTeachers[(index - 1) % allTeachers.length]!;
@@ -666,6 +759,7 @@ async function main() {
     );
   }
 
+  // 生成毕业审核边界数据，覆盖审核通过、不通过和需要人工复核。
   for (let index = 0; index < 40; index += 1) {
     const student = bulkStudents[index]!;
     const hasFailedRequiredCourse = index % 7 === 0;
@@ -682,6 +776,7 @@ async function main() {
     });
   }
 
+  // 生成教师教学日志和出勤摘要，用于教师考勤、日志查询与统计测试。
   for (let index = 1; index <= 30; index += 1) {
     const teacher = allTeachers[(index - 1) % allTeachers.length]!;
     const course = bulkCourses[(index - 1) % bulkCourses.length]!;
@@ -722,6 +817,8 @@ async function main() {
     }
   }
 
+  // 八、执行结果检查
+  // 并行统计各表当前总记录数，确认测试数据规模满足分页和统计测试要求。
   const counts = await Promise.all([
     prisma.user.count(),
     prisma.department.count(),
@@ -741,6 +838,21 @@ async function main() {
     prisma.approvalRecord.count(),
     prisma.operationLog.count(),
   ]);
+
+  // 检查所有学生学号均为12位数字，并且前4位年级、接着2位学院代码与学生资料一致。
+  const studentNoRows = await prisma.student.findMany({
+    select: { studentNo: true, grade: true },
+    orderBy: { studentNo: 'asc' },
+  });
+  const invalidStudentNos = studentNoRows.filter(({ studentNo, grade }) =>
+    !/^\d{12}$/.test(studentNo)
+    || studentNo.slice(0, 4) !== String(grade)
+    || studentNo.slice(4, 6) !== seedCollegeCode,
+  );
+  if (invalidStudentNos.length > 0) {
+    throw new Error(`发现${invalidStudentNos.length}个不符合4-2-2-2-2规则的学号：${invalidStudentNos.slice(0, 5).map((item) => item.studentNo).join('、')}`);
+  }
+  console.log(`学号格式检查通过：${studentNoRows.length}个学号均符合4-2-2-2-2规则。`);
 
   console.table({
     users: counts[0],
@@ -764,6 +876,7 @@ async function main() {
 
   const totalRecords = counts.reduce((sum, count) => sum + count, 0);
   console.log(`Total seeded records across business tables: ${totalRecords}`);
+  // 这里检查的是数据库当前总量，其中也包含 seed 执行前已经存在的数据。
   if (totalRecords < 200) {
     throw new Error(`Seed数据总量不足200条，当前只有${totalRecords}条`);
   }
@@ -773,11 +886,13 @@ async function main() {
   console.log(`默认测试密码：${defaultPassword}`);
 }
 
+// 启动 seed；发生异常时设置非零退出码，方便 PowerShell 或 CI 判断执行失败。
 main()
   .catch((error: unknown) => {
     console.error('Seed执行失败：', error);
     process.exitCode = 1;
   })
   .finally(async () => {
+    // 无论成功或失败都释放连接，避免 Node.js 进程持续占用数据库连接池。
     await prisma.$disconnect();
   });
