@@ -8,11 +8,7 @@
 export type ApiError = {
   code: string;
   message: string;
-<<<<<<< HEAD
   details?: string[];
-=======
-  details?: unknown;
->>>>>>> 0de8e26c4ebbd09cb7820d60e5fd8d4df61fe2f3
 };
 
 export type ApiSuccessResponse<T> = {

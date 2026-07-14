@@ -278,13 +278,14 @@ model TextbookOrder {
 }
 
 model ClassroomRequest {
-  id          Int            @id @default(autoincrement())
-  applicantId Int            @map("applicant_id")
-  classroomId Int            @map("classroom_id")
-  startTime   DateTime       @map("start_time")
-  endTime     DateTime       @map("end_time")
-  purpose     String         @db.VarChar(255)
-  status      WorkflowStatus @default(PENDING)
+  id               Int            @id @default(autoincrement())
+  applicantId      Int            @map("applicant_id")
+  classroomId      Int            @map("classroom_id")
+  participantCount Int            @default(1) @map("participant_count")
+  startTime        DateTime       @map("start_time")
+  endTime          DateTime       @map("end_time")
+  purpose          String         @db.VarChar(255)
+  status           WorkflowStatus @default(DRAFT)
 
   applicant User      @relation("RequestApplicant", fields: [applicantId], references: [id])
   classroom Classroom @relation(fields: [classroomId], references: [id])
