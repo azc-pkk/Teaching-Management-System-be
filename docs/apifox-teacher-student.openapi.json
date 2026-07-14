@@ -279,6 +279,40 @@
               "$ref": "#/components/schemas/StudentStatus"
             },
             "description": "学籍状态"
+          },
+          {
+            "name": "departmentId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "所属部门/学院 ID"
+          },
+          {
+            "name": "majorId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "所属专业 ID"
+          },
+          {
+            "name": "activated",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "是否已创建学生账号"
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "学生账号是否启用；仅筛选已激活账号"
           }
         ],
         "responses": {
@@ -696,7 +730,9 @@
           },
           "studentNo": {
             "type": "string",
-            "example": "S20260001"
+            "pattern": "^[0-9]{12}$",
+            "example": "202302010101",
+            "description": "年级4位 + 部门ID2位 + 专业ID2位 + 班级ID2位 + 班内序号2位"
           },
           "name": {
             "type": "string",
@@ -721,6 +757,48 @@
             "type": "string",
             "nullable": true,
             "example": "13900000001"
+          },
+          "departmentId": {
+            "type": "integer",
+            "example": 2
+          },
+          "departmentName": {
+            "type": "string",
+            "example": "计算机系"
+          },
+          "majorId": {
+            "type": "integer",
+            "example": 1
+          },
+          "majorName": {
+            "type": "string",
+            "example": "计算机科学与技术"
+          },
+          "activated": {
+            "type": "boolean",
+            "example": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "user": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "integer",
+                "example": 6
+              },
+              "username": {
+                "type": "string",
+                "example": "student"
+              },
+              "enabled": {
+                "type": "boolean",
+                "example": true
+              }
+            }
           }
         }
       },
