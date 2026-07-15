@@ -28,22 +28,27 @@ export class StudentsService {
           : query.activated
             ? { isNot: null }
             : { is: null };
+    const hasClassGroupFilter = Boolean(
+      query.departmentId || query.majorId || query.classGroupCode,
+    );
     const where = {
       classGroupId: query.classGroupId,
       grade: query.grade,
       status: query.status,
-      classGroup:
-        query.departmentId || query.majorId
-          ? {
-              departmentId: query.departmentId,
-              majorId: query.majorId,
-            }
-          : undefined,
+      classGroup: hasClassGroupFilter
+        ? {
+            departmentId: query.departmentId,
+            majorId: query.majorId,
+            code: query.classGroupCode,
+          }
+        : undefined,
       user: userFilter,
       OR: keyword
         ? [
             { studentNo: { contains: keyword } },
             { name: { contains: keyword } },
+            { classGroup: { name: { contains: keyword } } },
+            { classGroup: { code: { contains: keyword } } },
           ]
         : undefined,
     };
@@ -138,6 +143,7 @@ export class StudentsService {
         orderBy: [{ parentId: 'asc' }, { code: 'asc' }],
         select: {
           id: true,
+          code: true,
           name: true,
         },
       }),
@@ -145,6 +151,7 @@ export class StudentsService {
         orderBy: { code: 'asc' },
         select: {
           id: true,
+          code: true,
           name: true,
           departmentId: true,
         },
@@ -153,6 +160,7 @@ export class StudentsService {
         orderBy: [{ grade: 'desc' }, { name: 'asc' }],
         select: {
           id: true,
+          code: true,
           name: true,
           grade: true,
           majorId: true,
@@ -164,7 +172,11 @@ export class StudentsService {
     return {
       departments,
       majors,
-      classGroups,
+      classGroups: classGroups.map((classGroup) => ({
+        ...classGroup,
+        label: `${classGroup.name}（${classGroup.grade}-${classGroup.code}）`,
+        value: classGroup.id,
+      })),
       grades: [...new Set(classGroups.map((classGroup) => classGroup.grade))],
       statuses: Object.values(StudentStatus),
     };
@@ -172,7 +184,12 @@ export class StudentsService {
 
   async create(createStudentDto: CreateStudentDto) {
     await this.ensureStudentNoAvailable(createStudentDto.studentNo);
-    await this.ensureClassGroupExists(createStudentDto.classGroupId);
+    const classGroup = await this.getClassGroup(createStudentDto.classGroupId);
+    this.ensureStudentMatchesClassGroup(
+      createStudentDto.studentNo,
+      createStudentDto.grade,
+      classGroup,
+    );
 
     const student = await this.prisma.student.create({
       data: createStudentDto,
@@ -215,7 +232,16 @@ export class StudentsService {
       await this.ensureStudentNoAvailable(updateStudentDto.studentNo, id);
     }
 
-    await this.ensureClassGroupExists(updateStudentDto.classGroupId);
+    const targetClassGroupId =
+      updateStudentDto.classGroupId ?? current.classGroupId;
+    const targetStudentNo = updateStudentDto.studentNo ?? current.studentNo;
+    const targetGrade = updateStudentDto.grade ?? current.grade;
+    const classGroup = await this.getClassGroup(targetClassGroupId);
+    this.ensureStudentMatchesClassGroup(
+      targetStudentNo,
+      targetGrade,
+      classGroup,
+    );
 
     const shouldSyncUser =
       current.user !== null && /^\d+$/.test(current.user.username);
@@ -298,6 +324,7 @@ export class StudentsService {
       select: {
         id: true,
         studentNo: true,
+        grade: true,
         classGroupId: true,
         user: {
           select: {
@@ -340,18 +367,39 @@ export class StudentsService {
     }
   }
 
-  private async ensureClassGroupExists(classGroupId?: number) {
-    if (!classGroupId) {
-      return;
-    }
-
+  private async getClassGroup(classGroupId: number) {
     const classGroup = await this.prisma.classGroup.findUnique({
       where: { id: classGroupId },
-      select: { id: true },
+      select: { id: true, code: true, grade: true },
     });
 
     if (!classGroup) {
       throw new BadRequestException('Class group not found');
+    }
+
+    return classGroup;
+  }
+
+  private ensureStudentMatchesClassGroup(
+    studentNo: string,
+    grade: number,
+    classGroup: { code: string; grade: number },
+  ) {
+    if (!/^\d{12}$/.test(studentNo)) {
+      throw new BadRequestException('Student number must be exactly 12 digits');
+    }
+    if (Number(studentNo.slice(0, 4)) !== grade) {
+      throw new BadRequestException(
+        'Student number grade segment does not match student grade',
+      );
+    }
+    if (classGroup.grade !== grade) {
+      throw new BadRequestException('Student grade does not match class group');
+    }
+    if (studentNo.slice(8, 10) !== classGroup.code.padStart(2, '0')) {
+      throw new BadRequestException(
+        'Student number class segment does not match class group code',
+      );
     }
   }
 
@@ -365,6 +413,7 @@ export class StudentsService {
     name: string;
     classGroupId: number;
     classGroup: {
+      code: string;
       name: string;
       majorId: number;
       major: { name: string };
@@ -397,6 +446,7 @@ export class StudentsService {
       studentNo: student.studentNo,
       name: student.name,
       classGroupId: student.classGroupId,
+      classGroupCode: student.classGroup.code,
       classGroupName: student.classGroup.name,
       grade: student.grade,
       status: student.status,

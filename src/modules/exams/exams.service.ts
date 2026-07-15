@@ -1,10 +1,16 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, WorkflowStatus } from '../../../generated/prisma/client';
+import {
+  Prisma,
+  UserRole,
+  WorkflowStatus,
+} from '../../../generated/prisma/client';
+import type { AuthenticatedUser } from '../../common/auth/authenticated-user';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateExamDto, QueryExamDto, UpdateExamDto } from './dto/exam.dto';
 
@@ -68,12 +74,14 @@ export class ExamsService {
     return this.toExamDto(exam);
   }
 
-  async create(createDto: CreateExamDto) {
+  async create(createDto: CreateExamDto, actor: AuthenticatedUser) {
+    this.ensureAcademicActor(actor);
     const startTime = new Date(createDto.startTime);
     const endTime = new Date(createDto.endTime);
 
     this.ensureValidTimeRange(startTime, endTime);
     await this.ensureRelationsExist(
+      createDto.semesterId,
       createDto.courseId,
       createDto.classGroupId,
       createDto.classroomId,
@@ -103,7 +111,8 @@ export class ExamsService {
     return this.toExamDto(exam);
   }
 
-  async update(id: number, updateDto: UpdateExamDto) {
+  async update(id: number, updateDto: UpdateExamDto, actor: AuthenticatedUser) {
+    this.ensureAcademicActor(actor);
     const current = await this.ensureExamExists(id);
     const classroomId = updateDto.classroomId ?? current.classroomId;
     const classGroupId = updateDto.classGroupId ?? current.classGroupId;
@@ -120,6 +129,7 @@ export class ExamsService {
 
     this.ensureValidTimeRange(startTime, endTime);
     await this.ensureRelationsExist(
+      updateDto.semesterId,
       updateDto.courseId,
       updateDto.classGroupId,
       updateDto.classroomId,
@@ -151,7 +161,8 @@ export class ExamsService {
     return this.toExamDto(exam);
   }
 
-  async remove(id: number) {
+  async remove(id: number, actor: AuthenticatedUser) {
+    this.ensureAcademicActor(actor);
     await this.ensureExamExists(id);
     await this.prisma.exam.delete({ where: { id } });
 
@@ -169,6 +180,15 @@ export class ExamsService {
     };
   }
 
+  private ensureAcademicActor(actor: AuthenticatedUser) {
+    if (actor.role !== UserRole.ACADEMIC && actor.role !== UserRole.ADMIN) {
+      throw new ForbiddenException({
+        code: 'EXAM_MANAGEMENT_FORBIDDEN',
+        message: 'Only academic or system administrators can manage exams',
+      });
+    }
+  }
+
   private ensureValidTimeRange(startTime: Date, endTime: Date) {
     if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
       throw new BadRequestException('Invalid time');
@@ -180,38 +200,49 @@ export class ExamsService {
   }
 
   private async ensureRelationsExist(
+    semesterId?: number,
     courseId?: number,
     classGroupId?: number,
     classroomId?: number,
     invigilatorId?: number | null,
   ) {
-    const [course, classGroup, classroom, invigilator] = await Promise.all([
-      courseId
-        ? this.prisma.course.findUnique({
-            where: { id: courseId },
-            select: { id: true },
-          })
-        : Promise.resolve({ id: 0 }),
-      classGroupId
-        ? this.prisma.classGroup.findUnique({
-            where: { id: classGroupId },
-            select: { id: true },
-          })
-        : Promise.resolve({ id: 0 }),
-      classroomId
-        ? this.prisma.classroom.findUnique({
-            where: { id: classroomId },
-            select: { id: true },
-          })
-        : Promise.resolve({ id: 0 }),
-      invigilatorId
-        ? this.prisma.teacher.findUnique({
-            where: { id: invigilatorId },
-            select: { id: true },
-          })
-        : Promise.resolve({ id: 0 }),
-    ]);
+    const [semester, course, classGroup, classroom, invigilator] =
+      await Promise.all([
+        semesterId
+          ? this.prisma.semester.findUnique({
+              where: { id: semesterId },
+              select: { id: true },
+            })
+          : Promise.resolve({ id: 0 }),
+        courseId
+          ? this.prisma.course.findUnique({
+              where: { id: courseId },
+              select: { id: true },
+            })
+          : Promise.resolve({ id: 0 }),
+        classGroupId
+          ? this.prisma.classGroup.findUnique({
+              where: { id: classGroupId },
+              select: { id: true },
+            })
+          : Promise.resolve({ id: 0 }),
+        classroomId
+          ? this.prisma.classroom.findUnique({
+              where: { id: classroomId },
+              select: { id: true },
+            })
+          : Promise.resolve({ id: 0 }),
+        invigilatorId
+          ? this.prisma.teacher.findUnique({
+              where: { id: invigilatorId },
+              select: { id: true },
+            })
+          : Promise.resolve({ id: 0 }),
+      ]);
 
+    if (semesterId && !semester) {
+      throw new BadRequestException('Semester not found');
+    }
     if (courseId && !course) {
       throw new BadRequestException('Course not found');
     }

@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Min,
+} from 'class-validator';
 import { ClassroomStatus } from '../../../../generated/prisma/client';
 
 export class DepartmentQueryDto {
@@ -23,6 +30,11 @@ export class MajorQueryDto {
 }
 
 export class ClassGroupQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}$/, { message: 'code must be exactly 2 digits' })
+  code?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

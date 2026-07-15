@@ -42,7 +42,14 @@ export class JwtAuthGuard implements CanActivate {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, role: true, enabled: true },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        teacherId: true,
+        studentId: true,
+        enabled: true,
+      },
     });
 
     if (!user?.enabled) {
@@ -53,6 +60,8 @@ export class JwtAuthGuard implements CanActivate {
       id: user.id,
       username: user.username,
       role: user.role,
+      teacherId: user.teacherId,
+      studentId: user.studentId,
     };
     return true;
   }

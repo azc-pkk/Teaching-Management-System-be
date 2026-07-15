@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Min,
 } from 'class-validator';
 import { StudentStatus } from '../../../../generated/prisma/client';
@@ -45,6 +46,11 @@ export class QueryStudentDto {
   classGroupId?: number;
 
   @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}$/, { message: 'classGroupCode must be exactly 2 digits' })
+  classGroupCode?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(2000)
@@ -79,6 +85,7 @@ export class QueryStudentDto {
 
 export class CreateStudentDto {
   @IsString()
+  @Matches(/^\d{12}$/, { message: 'studentNo must be exactly 12 digits' })
   studentNo!: string;
 
   @IsString()
@@ -105,6 +112,7 @@ export class CreateStudentDto {
 export class UpdateStudentDto {
   @IsOptional()
   @IsString()
+  @Matches(/^\d{12}$/, { message: 'studentNo must be exactly 12 digits' })
   studentNo?: string;
 
   @IsOptional()

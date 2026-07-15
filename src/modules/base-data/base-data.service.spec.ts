@@ -3,12 +3,63 @@ import { BaseDataService } from './base-data.service';
 
 describe('BaseDataService', () => {
   const findUnique = jest.fn<Promise<unknown>, [unknown]>();
+  const findCourses = jest.fn<Promise<unknown>, [unknown]>();
+  const findSemesters = jest.fn<Promise<unknown>, [unknown]>();
   const service = new BaseDataService({
-    course: { findUnique },
+    course: { findUnique, findMany: findCourses },
+    semester: { findMany: findSemesters },
   } as never);
 
   beforeEach(() => {
     findUnique.mockReset();
+    findCourses.mockReset();
+    findSemesters.mockReset();
+  });
+
+  it('returns dropdown-ready course options', async () => {
+    findCourses.mockResolvedValue([
+      { id: 7, code: 'CS101', name: '数据库原理' },
+    ]);
+
+    const result = await service.findCourseOptions({});
+
+    expect(result).toEqual([
+      {
+        id: 7,
+        code: 'CS101',
+        name: '数据库原理',
+        label: 'CS101 - 数据库原理',
+        value: 7,
+      },
+    ]);
+  });
+
+  it('returns distinct semester records as dropdown options', async () => {
+    findSemesters.mockResolvedValue([
+      {
+        id: 1,
+        code: '2025-2026-2',
+        name: '2025-2026学年第二学期',
+        startDate: new Date('2026-02-23T00:00:00.000Z'),
+        endDate: new Date('2026-07-17T00:00:00.000Z'),
+        status: 'ACTIVE',
+      },
+      {
+        id: 2,
+        code: '2025-2026-1',
+        name: '2025-2026学年第一学期',
+        startDate: new Date('2025-09-01T00:00:00.000Z'),
+        endDate: new Date('2026-01-23T00:00:00.000Z'),
+        status: 'CLOSED',
+      },
+    ]);
+
+    const result = await service.findSemesterOptions();
+
+    expect(result.map((option) => option.value)).toEqual([1, 2]);
+    expect(result[0]?.label).toBe('2025-2026学年第二学期');
+    expect(result[0]?.startDate).toBe('2026-02-23');
+    expect(result[0]?.endDate).toBe('2026-07-17');
   });
 
   it('returns a course with its database-backed arrangements', async () => {

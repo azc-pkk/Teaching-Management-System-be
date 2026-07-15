@@ -63,6 +63,12 @@ enum TeachingLogStatus {
   REJECTED
 }
 
+enum SemesterStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+}
+
 enum ApprovalAction {
   SUBMIT
   APPROVE
@@ -127,6 +133,7 @@ model Major {
 
 model ClassGroup {
   id           Int    @id @default(autoincrement())
+  code         String @map("class_code") @db.VarChar(10)
   name         String @db.VarChar(100)
   grade        Int
   majorId      Int    @map("major_id")
@@ -145,6 +152,7 @@ model ClassGroup {
   @@index([majorId])
   @@index([departmentId])
   @@index([counselorId])
+  @@unique([grade, majorId, code])
   @@map("class_group")
 }
 
@@ -208,6 +216,22 @@ model Course {
   @@map("course")
 }
 
+model Semester {
+  id        Int            @id @default(autoincrement())
+  code      String         @unique @db.VarChar(30)
+  name      String         @db.VarChar(100)
+  startDate DateTime       @map("start_date") @db.Date
+  endDate   DateTime       @map("end_date") @db.Date
+  status    SemesterStatus @default(PLANNED)
+
+  exams             Exam[]
+  textbookOrders    TextbookOrder[]
+  graduationReviews GraduationReview[]
+
+  @@index([startDate])
+  @@map("semester")
+}
+
 model Classroom {
   id       Int             @id @default(autoincrement())
   campus   String?         @db.VarChar(100)
@@ -234,6 +258,7 @@ model Exam {
   endTime       DateTime @map("end_time")
   invigilatorId Int?     @map("invigilator_id")
 
+  semester    Semester   @relation(fields: [semesterId], references: [id])
   course      Course     @relation(fields: [courseId], references: [id])
   classGroup  ClassGroup @relation(fields: [classGroupId], references: [id])
   classroom   Classroom  @relation(fields: [classroomId], references: [id])
@@ -268,6 +293,7 @@ model TextbookOrder {
   quantity   Int
   status     TextbookOrderStatus @default(PENDING)
 
+  semester Semester @relation(fields: [semesterId], references: [id])
   course   Course   @relation(fields: [courseId], references: [id])
   textbook Textbook @relation(fields: [textbookId], references: [id])
 
@@ -322,7 +348,8 @@ model GraduationReview {
   hasFailedRequiredCourse Boolean          @default(false) @map("has_failed_required_course")
   result                  GraduationResult @default(PENDING)
 
-  student Student @relation(fields: [studentId], references: [id])
+  student  Student  @relation(fields: [studentId], references: [id])
+  semester Semester @relation(fields: [semesterId], references: [id])
 
   @@unique([studentId, semesterId])
   @@index([semesterId])

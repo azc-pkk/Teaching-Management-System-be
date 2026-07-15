@@ -33,6 +33,16 @@ export class BaseDataController {
     return this.baseDataService.findCourses(query);
   }
 
+  @Get('courses/options')
+  findCourseOptions(@Query() query: CourseQueryDto) {
+    return this.baseDataService.findCourseOptions(query);
+  }
+
+  @Get('semesters/options')
+  findSemesterOptions() {
+    return this.baseDataService.findSemesterOptions();
+  }
+
   @Get('courses/:id')
   findCourseDetail(
     @Param('id', ParseIntPipe) id: number,

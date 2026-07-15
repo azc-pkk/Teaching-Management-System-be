@@ -8,7 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../common/auth/authenticated-user';
+import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard';
 import {
   CreateScheduleChangeDto,
   QueryScheduleChangeDto,
@@ -18,6 +24,7 @@ import {
 import { ScheduleChangesService } from './schedule-changes.service';
 
 @Controller('schedule-changes')
+@UseGuards(JwtAuthGuard)
 export class ScheduleChangesController {
   constructor(
     private readonly scheduleChangesService: ScheduleChangesService,
@@ -34,28 +41,36 @@ export class ScheduleChangesController {
   }
 
   @Post()
-  create(@Body() createDto: CreateScheduleChangeDto) {
-    return this.scheduleChangesService.create(createDto);
+  create(
+    @Body() createDto: CreateScheduleChangeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.scheduleChangesService.create(createDto, user);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateScheduleChangeDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.scheduleChangesService.update(id, updateDto);
+    return this.scheduleChangesService.update(id, updateDto, user);
   }
 
   @Patch(':id/status')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateStatusDto: UpdateScheduleChangeStatusDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.scheduleChangesService.updateStatus(id, updateStatusDto);
+    return this.scheduleChangesService.updateStatus(id, updateStatusDto, user);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.scheduleChangesService.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.scheduleChangesService.remove(id, user);
   }
 }

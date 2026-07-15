@@ -1,13 +1,17 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
   ApprovalAction,
   Prisma,
+  UserRole,
   WorkflowStatus,
 } from '../../../generated/prisma/client';
+import type { AuthenticatedUser } from '../../common/auth/authenticated-user';
 import { PrismaService } from '../../database/prisma.service';
 import {
   CreateScheduleChangeDto,
@@ -73,7 +77,18 @@ export class ScheduleChangesService {
     return this.toScheduleChangeDto(change);
   }
 
-  async create(createDto: CreateScheduleChangeDto) {
+  async create(createDto: CreateScheduleChangeDto, actor: AuthenticatedUser) {
+    this.ensureTeacherActor(actor, createDto.teacherId);
+    if (
+      createDto.status !== undefined &&
+      createDto.status !== WorkflowStatus.DRAFT &&
+      createDto.status !== WorkflowStatus.PENDING
+    ) {
+      throw new BadRequestException({
+        code: 'INVALID_STATUS_TRANSITION',
+        message: 'A schedule change can only be created as DRAFT or PENDING',
+      });
+    }
     await this.ensureRelationsExist(
       createDto.teacherId,
       createDto.courseId,
@@ -95,8 +110,38 @@ export class ScheduleChangesService {
     return this.toScheduleChangeDto(change);
   }
 
-  async update(id: number, updateDto: UpdateScheduleChangeDto) {
-    await this.ensureChangeExists(id);
+  async update(
+    id: number,
+    updateDto: UpdateScheduleChangeDto,
+    actor: AuthenticatedUser,
+  ) {
+    const current = await this.ensureChangeExists(id);
+    this.ensureTeacherActor(actor, current.teacherId);
+    if (
+      current.status !== WorkflowStatus.DRAFT &&
+      current.status !== WorkflowStatus.PENDING
+    ) {
+      throw new ConflictException({
+        code: 'SCHEDULE_CHANGE_NOT_EDITABLE',
+        message: 'Only DRAFT or PENDING schedule changes can be edited',
+      });
+    }
+    if (updateDto.status !== undefined) {
+      throw new BadRequestException({
+        code: 'STATUS_ENDPOINT_REQUIRED',
+        message: 'Use the status endpoint to change workflow status',
+      });
+    }
+    if (
+      updateDto.teacherId !== undefined &&
+      updateDto.teacherId !== current.teacherId
+    ) {
+      throw new ForbiddenException({
+        code: 'TEACHER_MISMATCH',
+        message:
+          'A teacher cannot transfer a schedule change to another teacher',
+      });
+    }
     await this.ensureRelationsExist(
       updateDto.teacherId,
       updateDto.courseId,
@@ -105,16 +150,26 @@ export class ScheduleChangesService {
 
     const change = await this.prisma.scheduleChange.update({
       where: { id },
-      data: updateDto,
+      data: {
+        courseId: updateDto.courseId,
+        classGroupId: updateDto.classGroupId,
+        hours: updateDto.hours,
+        reason: updateDto.reason,
+      },
       include: this.includeRelations(),
     });
 
     return this.toScheduleChangeDto(change);
   }
 
-  async updateStatus(id: number, updateDto: UpdateScheduleChangeStatusDto) {
-    await this.ensureChangeExists(id);
-    await this.ensureOperatorExists(updateDto.operatorId);
+  async updateStatus(
+    id: number,
+    updateDto: UpdateScheduleChangeStatusDto,
+    actor: AuthenticatedUser,
+  ) {
+    const current = await this.ensureChangeExists(id);
+    this.ensureStatusTransition(current, updateDto, actor);
+    const comment = updateDto.comment?.trim();
 
     const change = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.scheduleChange.update({
@@ -123,17 +178,15 @@ export class ScheduleChangesService {
         include: this.includeRelations(),
       });
 
-      if (updateDto.operatorId) {
-        await tx.approvalRecord.create({
-          data: {
-            businessType: 'SCHEDULE_CHANGE',
-            businessId: id,
-            operatorId: updateDto.operatorId,
-            action: this.toApprovalAction(updateDto.status),
-            comment: updateDto.comment,
-          },
-        });
-      }
+      await tx.approvalRecord.create({
+        data: {
+          businessType: 'SCHEDULE_CHANGE',
+          businessId: id,
+          operatorId: actor.id,
+          action: this.toApprovalAction(updateDto.status),
+          comment: comment || undefined,
+        },
+      });
 
       return updated;
     });
@@ -141,8 +194,15 @@ export class ScheduleChangesService {
     return this.toScheduleChangeDto(change);
   }
 
-  async remove(id: number) {
-    await this.ensureChangeExists(id);
+  async remove(id: number, actor: AuthenticatedUser) {
+    const current = await this.ensureChangeExists(id);
+    this.ensureTeacherActor(actor, current.teacherId);
+    if (current.status !== WorkflowStatus.DRAFT) {
+      throw new ConflictException({
+        code: 'SCHEDULE_CHANGE_NOT_DELETABLE',
+        message: 'Only DRAFT schedule changes can be deleted',
+      });
+    }
     await this.prisma.scheduleChange.delete({ where: { id } });
 
     return { deleted: true };
@@ -188,27 +248,80 @@ export class ScheduleChangesService {
   private async ensureChangeExists(id: number) {
     const change = await this.prisma.scheduleChange.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, teacherId: true, status: true },
     });
 
     if (!change) {
       throw new NotFoundException('Schedule change not found');
     }
+
+    return change;
   }
 
-  private async ensureOperatorExists(operatorId?: number) {
-    if (!operatorId) {
+  private ensureTeacherActor(actor: AuthenticatedUser, teacherId: number) {
+    if (actor.role === UserRole.ADMIN) {
       return;
     }
 
-    const operator = await this.prisma.user.findUnique({
-      where: { id: operatorId },
-      select: { id: true },
-    });
-
-    if (!operator) {
-      throw new BadRequestException('Operator not found');
+    if (actor.role !== UserRole.TEACHER || actor.teacherId !== teacherId) {
+      throw new ForbiddenException({
+        code: 'SCHEDULE_CHANGE_OWNER_REQUIRED',
+        message:
+          'Only the teacher who owns the schedule change can perform this action',
+      });
     }
+  }
+
+  private ensureStatusTransition(
+    current: { teacherId: number; status: WorkflowStatus },
+    updateDto: UpdateScheduleChangeStatusDto,
+    actor: AuthenticatedUser,
+  ) {
+    const target = updateDto.status;
+    if (
+      current.status === WorkflowStatus.DRAFT &&
+      target === WorkflowStatus.PENDING
+    ) {
+      this.ensureTeacherActor(actor, current.teacherId);
+      return;
+    }
+
+    if (
+      current.status === WorkflowStatus.PENDING &&
+      target === WorkflowStatus.CANCELLED
+    ) {
+      this.ensureTeacherActor(actor, current.teacherId);
+      return;
+    }
+
+    if (
+      current.status === WorkflowStatus.PENDING &&
+      (target === WorkflowStatus.APPROVED || target === WorkflowStatus.REJECTED)
+    ) {
+      if (
+        actor.role !== UserRole.DEPARTMENT_ADMIN &&
+        actor.role !== UserRole.ACADEMIC &&
+        actor.role !== UserRole.ADMIN
+      ) {
+        throw new ForbiddenException({
+          code: 'SCHEDULE_CHANGE_APPROVAL_FORBIDDEN',
+          message:
+            'Only department, academic, or system administrators can approve or reject schedule changes',
+        });
+      }
+      if (target === WorkflowStatus.REJECTED && !updateDto.comment?.trim()) {
+        throw new BadRequestException({
+          code: 'REJECTION_COMMENT_REQUIRED',
+          message: 'comment is required when rejecting',
+        });
+      }
+      return;
+    }
+
+    throw new ConflictException({
+      code: 'INVALID_STATUS_TRANSITION',
+      message: `Invalid status transition: ${current.status} -> ${target}`,
+    });
   }
 
   private toApprovalAction(status: WorkflowStatus) {
