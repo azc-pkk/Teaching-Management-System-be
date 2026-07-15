@@ -60,6 +60,123 @@ export class AuthService {
     };
   }
 
+  async getCurrentUser(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        role: true,
+        enabled: true,
+        teacher: {
+          select: {
+            id: true,
+            employeeNo: true,
+            name: true,
+            departmentId: true,
+            teacherType: true,
+            title: true,
+            phone: true,
+            department: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            studentNo: true,
+            name: true,
+            grade: true,
+            status: true,
+            phone: true,
+            classGroup: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                majorId: true,
+                departmentId: true,
+                major: {
+                  select: {
+                    name: true,
+                  },
+                },
+                department: {
+                  select: {
+                    name: true,
+                  },
+                },
+                counselor: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user?.enabled) {
+      throw new UnauthorizedException('User is unavailable');
+    }
+
+    const role = user.role.toLowerCase();
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        displayName: user.name,
+        enabled: user.enabled,
+      },
+      identity: {
+        role,
+        roleCode: user.role,
+        roleLabel: this.getRoleLabel(user.role),
+        isAdministrator: user.role === UserRole.ADMIN,
+      },
+      teacherProfile: user.teacher
+        ? {
+            id: user.teacher.id,
+            employeeNo: user.teacher.employeeNo,
+            name: user.teacher.name,
+            departmentId: user.teacher.departmentId,
+            departmentName: user.teacher.department?.name ?? null,
+            teacherType: user.teacher.teacherType,
+            title: user.teacher.title,
+            phone: user.teacher.phone,
+          }
+        : null,
+      studentProfile: user.student
+        ? {
+            id: user.student.id,
+            studentNo: user.student.studentNo,
+            name: user.student.name,
+            grade: user.student.grade,
+            status: user.student.status,
+            phone: user.student.phone,
+            classGroupId: user.student.classGroup.id,
+            classGroupCode: user.student.classGroup.code,
+            classGroupName: user.student.classGroup.name,
+            majorId: user.student.classGroup.majorId,
+            majorName: user.student.classGroup.major.name,
+            departmentId: user.student.classGroup.departmentId,
+            departmentName: user.student.classGroup.department.name,
+            counselorId: user.student.classGroup.counselor?.id ?? null,
+            counselorName: user.student.classGroup.counselor?.name ?? null,
+          }
+        : null,
+    };
+  }
+
   private async findLoginUser(username: string) {
     const user = await this.prisma.user.findUnique({
       where: { username },
@@ -213,5 +330,20 @@ export class AuthService {
       studentId: user.student?.id ?? null,
       enabled: user.enabled,
     };
+  }
+
+  private getRoleLabel(role: UserRole) {
+    const labels: Record<UserRole, string> = {
+      [UserRole.ADMIN]: '系统管理员',
+      [UserRole.ACADEMIC]: '教务管理员',
+      [UserRole.DEPARTMENT_ADMIN]: '系部管理员',
+      [UserRole.RESEARCH_DIRECTOR]: '教研室主任',
+      [UserRole.TEACHER]: '教师',
+      [UserRole.STUDENT]: '学生',
+      [UserRole.TEXTBOOK_ADMIN]: '教材管理员',
+      [UserRole.LEADER]: '领导',
+    };
+
+    return labels[role];
   }
 }
