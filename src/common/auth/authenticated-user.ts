@@ -6,6 +6,8 @@ export type AuthenticatedUser = {
   id: number;
   username: string;
   role: UserRole;
+  teacherId?: number | null;
+  studentId?: number | null;
 };
 
 export type AuthenticatedRequest = Request & {

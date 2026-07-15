@@ -7,6 +7,7 @@ import {
   ClassroomStatus,
   GraduationResult,
   PrismaClient,
+  SemesterStatus,
   StudentStatus,
   TeachingLogStatus,
   TextbookOrderStatus,
@@ -317,6 +318,7 @@ async function main() {
     ? await prisma.classGroup.update({
         where: { id: computerClassExisting.id },
         data: {
+          code: '01',
           grade: 2023,
           majorId: computerMajor.id,
           departmentId: computerDepartment.id,
@@ -326,6 +328,7 @@ async function main() {
       })
     : await prisma.classGroup.create({
         data: {
+          code: '01',
           name: '计算机2301班',
           grade: 2023,
           majorId: computerMajor.id,
@@ -342,6 +345,7 @@ async function main() {
     ? await prisma.classGroup.update({
         where: { id: softwareClassExisting.id },
         data: {
+          code: '01',
           grade: 2023,
           majorId: softwareMajor.id,
           departmentId: softwareDepartment.id,
@@ -351,6 +355,7 @@ async function main() {
       })
     : await prisma.classGroup.create({
         data: {
+          code: '01',
           name: '软件工程2301班',
           grade: 2023,
           majorId: softwareMajor.id,
@@ -487,8 +492,48 @@ async function main() {
     );
   }
 
-  // 图片仅定义semesterId，没有定义Semester实体，因此使用固定测试学期编号。
-  const semesterId = 1;
+  // 提供多个正式学期，供业务数据关联和前端下拉选择。
+  const semesterDefinitions = [
+    {
+      code: '2025-2026-2',
+      name: '2025-2026学年第二学期',
+      startDate: new Date('2026-02-23T00:00:00.000Z'),
+      endDate: new Date('2026-07-17T00:00:00.000Z'),
+      status: SemesterStatus.ACTIVE,
+    },
+    {
+      code: '2025-2026-1',
+      name: '2025-2026学年第一学期',
+      startDate: new Date('2025-09-01T00:00:00.000Z'),
+      endDate: new Date('2026-01-23T00:00:00.000Z'),
+      status: SemesterStatus.CLOSED,
+    },
+    {
+      code: '2024-2025-2',
+      name: '2024-2025学年第二学期',
+      startDate: new Date('2025-02-24T00:00:00.000Z'),
+      endDate: new Date('2025-07-18T00:00:00.000Z'),
+      status: SemesterStatus.CLOSED,
+    },
+    {
+      code: '2026-2027-1',
+      name: '2026-2027学年第一学期',
+      startDate: new Date('2026-09-01T00:00:00.000Z'),
+      endDate: new Date('2027-01-22T00:00:00.000Z'),
+      status: SemesterStatus.PLANNED,
+    },
+  ];
+  const semesters = await Promise.all(
+    semesterDefinitions.map((semester) =>
+      prisma.semester.upsert({
+        where: { code: semester.code },
+        update: semester,
+        create: semester,
+      }),
+    ),
+  );
+  const semesterIds = semesters.map((semester) => semester.id);
+  const semesterId = semesters[0]!.id;
 
   const classroom1 = await prisma.classroom.upsert({
     where: { roomNo: 'A101' },
@@ -934,6 +979,7 @@ async function main() {
 
   const extraClassSpecs = [
     {
+      code: '02',
       name: '计算机2302班',
       grade: 2023,
       majorId: computerMajor.id,
@@ -941,6 +987,7 @@ async function main() {
       counselorId: teacher3.id,
     },
     {
+      code: '02',
       name: '软件工程2302班',
       grade: 2023,
       majorId: softwareMajor.id,
@@ -948,6 +995,7 @@ async function main() {
       counselorId: teacher4.id,
     },
     {
+      code: '01',
       name: '计算机2401班',
       grade: 2024,
       majorId: computerMajor.id,
@@ -955,6 +1003,7 @@ async function main() {
       counselorId: allTeachers[5]!.id,
     },
     {
+      code: '01',
       name: '软件工程2401班',
       grade: 2024,
       majorId: softwareMajor.id,
@@ -1136,11 +1185,12 @@ async function main() {
     const classGroup = allClassGroups[(index - 1) % allClassGroups.length]!;
     const classroom = bulkClassrooms[(index - 1) % bulkClassrooms.length]!;
     const invigilator = allTeachers[index % allTeachers.length]!;
+    const bulkSemesterId = semesterIds[(index - 1) % 3]!;
     const startTime = new Date(Date.UTC(2026, 5, 1 + index, 1, 0, 0));
     const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
     const existing = await prisma.exam.findFirst({
       where: {
-        semesterId,
+        semesterId: bulkSemesterId,
         courseId: course.id,
         classGroupId: classGroup.id,
         startTime,
@@ -1158,7 +1208,7 @@ async function main() {
           })
         : await prisma.exam.create({
             data: {
-              semesterId,
+              semesterId: bulkSemesterId,
               courseId: course.id,
               classGroupId: classGroup.id,
               classroomId: classroom.id,
@@ -1173,8 +1223,13 @@ async function main() {
   for (let index = 1; index <= 18; index += 1) {
     const course = bulkCourses[(index - 1) % bulkCourses.length]!;
     const textbook = bulkTextbooks[(index - 1) % bulkTextbooks.length]!;
+    const bulkSemesterId = semesterIds[(index - 1) % 3]!;
     const existing = await prisma.textbookOrder.findFirst({
-      where: { semesterId, courseId: course.id, textbookId: textbook.id },
+      where: {
+        semesterId: bulkSemesterId,
+        courseId: course.id,
+        textbookId: textbook.id,
+      },
     });
     const data = {
       quantity: 30 + index * 2,
@@ -1190,7 +1245,7 @@ async function main() {
     } else {
       await prisma.textbookOrder.create({
         data: {
-          semesterId,
+          semesterId: bulkSemesterId,
           courseId: course.id,
           textbookId: textbook.id,
           ...data,
@@ -1296,12 +1351,18 @@ async function main() {
       : totalCredits >= 120
         ? GraduationResult.PASSED
         : GraduationResult.FAILED;
+    const graduationSemesterId = semesterIds[index % 3]!;
     await prisma.graduationReview.upsert({
-      where: { studentId_semesterId: { studentId: student.id, semesterId } },
+      where: {
+        studentId_semesterId: {
+          studentId: student.id,
+          semesterId: graduationSemesterId,
+        },
+      },
       update: { totalCredits, hasFailedRequiredCourse, result },
       create: {
         studentId: student.id,
-        semesterId,
+        semesterId: graduationSemesterId,
         totalCredits,
         hasFailedRequiredCourse,
         result,

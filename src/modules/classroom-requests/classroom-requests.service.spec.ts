@@ -24,6 +24,11 @@ const academic = {
   username: 'academic',
   role: UserRole.ACADEMIC,
 };
+const admin = {
+  id: 3,
+  username: 'admin',
+  role: UserRole.ADMIN,
+};
 
 describe('ClassroomRequestsService', () => {
   it('rejects participant counts above classroom capacity', async () => {
@@ -54,7 +59,7 @@ describe('ClassroomRequestsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('requires a non-blank comment when rejecting', async () => {
+  it('allows a system administrator to reach rejection validation', async () => {
     const prisma = {
       classroomRequest: {
         findUnique: jest.fn().mockResolvedValue({
@@ -76,7 +81,7 @@ describe('ClassroomRequestsService', () => {
       service.updateStatus(
         1,
         { status: WorkflowStatus.REJECTED, comment: '   ' },
-        academic,
+        admin,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -203,13 +208,9 @@ describe('ClassroomRequestsService', () => {
         }),
       },
       approvalRecord: {
-<<<<<<< HEAD
         create: jest
           .fn<Promise<{ id: number }>, [unknown]>()
           .mockResolvedValue({ id: 9 }),
-=======
-        create: jest.fn().mockResolvedValue({ id: 9 }),
->>>>>>> 0a72c501a5dfdf60d15e47cfdac74602b16e3e2d
         findMany: jest.fn().mockResolvedValue([
           {
             id: 9,
@@ -226,7 +227,6 @@ describe('ClassroomRequestsService', () => {
           },
         ]),
       },
-<<<<<<< HEAD
       $transaction: jest.fn<Promise<unknown>, [unknown]>(),
     };
     prisma.$transaction.mockImplementation((operation: unknown) => {
@@ -239,14 +239,6 @@ describe('ClassroomRequestsService', () => {
 
       return Promise.all(operation as Promise<unknown>[]);
     });
-=======
-      $transaction: jest.fn((operation: unknown) =>
-        typeof operation === 'function'
-          ? operation(prisma)
-          : Promise.all(operation as Promise<unknown>[]),
-      ),
-    };
->>>>>>> 0a72c501a5dfdf60d15e47cfdac74602b16e3e2d
     const service = new ClassroomRequestsService(
       prisma as unknown as PrismaService,
     );
@@ -257,7 +249,6 @@ describe('ClassroomRequestsService', () => {
       academic,
     );
 
-<<<<<<< HEAD
     const createCall: unknown = prisma.approvalRecord.create.mock.calls[0]?.[0];
     const approvalData = (
       createCall as {
@@ -271,15 +262,6 @@ describe('ClassroomRequestsService', () => {
     expect(approvalData.operatorId).toBe(academic.id);
     expect(approvalData.action).toBe(ApprovalAction.REJECT);
     expect(approvalData.comment).toBe('Time conflict');
-=======
-    expect(prisma.approvalRecord.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        operatorId: academic.id,
-        action: ApprovalAction.REJECT,
-        comment: 'Time conflict',
-      }),
-    });
->>>>>>> 0a72c501a5dfdf60d15e47cfdac74602b16e3e2d
     expect(result?.latestApproval).toEqual(
       expect.objectContaining({
         action: ApprovalAction.REJECT,

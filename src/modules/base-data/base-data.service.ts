@@ -62,6 +62,7 @@ export class BaseDataService {
   async findClassGroups(query: ClassGroupQueryDto) {
     const classGroups = await this.prisma.classGroup.findMany({
       where: {
+        code: query.code,
         departmentId: query.departmentId,
         majorId: query.majorId,
         grade: query.grade,
@@ -77,6 +78,7 @@ export class BaseDataService {
         major: {
           select: {
             id: true,
+            code: true,
             name: true,
           },
         },
@@ -85,10 +87,12 @@ export class BaseDataService {
 
     return classGroups.map((classGroup) => ({
       id: classGroup.id,
+      code: classGroup.code,
       name: classGroup.name,
       grade: classGroup.grade,
       majorId: classGroup.majorId,
       majorName: classGroup.major.name,
+      businessCode: `${classGroup.grade}-${classGroup.major.code}-${classGroup.code}`,
       departmentId: classGroup.departmentId,
       departmentName: classGroup.department.name,
       studentCount: classGroup.studentCount,
@@ -131,6 +135,43 @@ export class BaseDataService {
       departmentName: course.department?.name ?? null,
       directorId: course.directorId,
       directorName: course.director?.name ?? null,
+    }));
+  }
+
+  async findCourseOptions(query: CourseQueryDto) {
+    const keyword = query.keyword?.trim();
+    const courses = await this.prisma.course.findMany({
+      where: {
+        departmentId: query.departmentId,
+        OR: keyword
+          ? [{ code: { contains: keyword } }, { name: { contains: keyword } }]
+          : undefined,
+      },
+      orderBy: { code: 'asc' },
+      select: { id: true, code: true, name: true },
+    });
+
+    return courses.map((course) => ({
+      ...course,
+      label: `${course.code} - ${course.name}`,
+      value: course.id,
+    }));
+  }
+
+  async findSemesterOptions() {
+    const semesters = await this.prisma.semester.findMany({
+      orderBy: { startDate: 'desc' },
+    });
+
+    return semesters.map((semester) => ({
+      id: semester.id,
+      code: semester.code,
+      name: semester.name,
+      startDate: semester.startDate.toISOString().slice(0, 10),
+      endDate: semester.endDate.toISOString().slice(0, 10),
+      status: semester.status,
+      label: semester.name,
+      value: semester.id,
     }));
   }
 

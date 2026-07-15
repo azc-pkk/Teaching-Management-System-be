@@ -408,7 +408,11 @@ export class ClassroomRequestsService {
   }
 
   private ensureApplicantRole(actor: AuthenticatedUser) {
-    if (actor.role !== UserRole.TEACHER && actor.role !== UserRole.STUDENT) {
+    if (
+      actor.role !== UserRole.TEACHER &&
+      actor.role !== UserRole.STUDENT &&
+      actor.role !== UserRole.ADMIN
+    ) {
       throw new ForbiddenException({
         code: 'APPLICANT_ROLE_FORBIDDEN',
         message: 'Only teachers and students can create classroom requests',
@@ -417,6 +421,10 @@ export class ClassroomRequestsService {
   }
 
   private ensureOwner(applicantId: number, actor: AuthenticatedUser) {
+    if (actor.role === UserRole.ADMIN) {
+      return;
+    }
+
     if (applicantId !== actor.id) {
       throw new ForbiddenException({
         code: 'REQUEST_OWNER_REQUIRED',
@@ -459,11 +467,11 @@ export class ClassroomRequestsService {
       current.status === WorkflowStatus.PENDING &&
       (target === WorkflowStatus.APPROVED || target === WorkflowStatus.REJECTED)
     ) {
-      if (actor.role !== UserRole.ACADEMIC) {
+      if (actor.role !== UserRole.ACADEMIC && actor.role !== UserRole.ADMIN) {
         throw new ForbiddenException({
           code: 'APPROVAL_FORBIDDEN',
           message:
-            'Only academic administrators can approve or reject requests',
+            'Only academic or system administrators can approve or reject requests',
         });
       }
       if (target === WorkflowStatus.REJECTED && !updateDto.comment?.trim()) {
