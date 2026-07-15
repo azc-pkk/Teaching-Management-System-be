@@ -7,6 +7,7 @@ import {
   ClassroomStatus,
   GraduationResult,
   PrismaClient,
+  SemesterStatus,
   StudentStatus,
   TeachingLogStatus,
   TextbookOrderStatus,
@@ -370,11 +371,28 @@ async function main() {
     );
   }
 
-  // 当前 schema 只有 semesterId 字段，没有单独的 Semester 实体，因此暂用固定测试学期编号。
-  // 将来增加 Semester 表后，应先创建学期，再改用真实的 semester.id。
-  const semesterId = 1;
+  // 六、创建真实学期
+  // 业务表仍保存 semesterId 外键，但这个值必须来自 semester 表，不能再手写裸数字。
+  // 使用学期代码 upsert，保证 seed 重复执行时更新同一学期，不会生成重复记录。
+  const semester = await prisma.semester.upsert({
+    where: { code: '2025-2026-2' },
+    update: {
+      name: '2025-2026学年第二学期',
+      startDate: new Date('2026-02-23T00:00:00.000Z'),
+      endDate: new Date('2026-07-31T00:00:00.000Z'),
+      status: SemesterStatus.ACTIVE,
+    },
+    create: {
+      code: '2025-2026-2',
+      name: '2025-2026学年第二学期',
+      startDate: new Date('2026-02-23T00:00:00.000Z'),
+      endDate: new Date('2026-07-31T00:00:00.000Z'),
+      status: SemesterStatus.ACTIVE,
+    },
+  });
+  const semesterId = semester.id;
 
-  // 六、核心业务样例
+  // 七、核心业务样例
   // 先写入教室、课程、考试和教材，再创建依赖它们的申请、审核和教学日志。
   const classroom1 = await prisma.classroom.upsert({
     where: { roomNo: 'A101' },
@@ -539,7 +557,7 @@ async function main() {
     }
   }
 
-  // 七、批量场景数据
+  // 八、批量场景数据
   // 用于分页、筛选、统计、审批流和边界测试；数据按序号规律生成，方便稳定复现。
   // 先补充批量教师，后续课程、考试、调课和教学日志会循环引用这些教师。
   const allTeachers = [teacher1, teacher2, teacher3, teacher4, teacher5];
@@ -817,7 +835,7 @@ async function main() {
     }
   }
 
-  // 八、执行结果检查
+  // 九、执行结果检查
   // 并行统计各表当前总记录数，确认测试数据规模满足分页和统计测试要求。
   const counts = await Promise.all([
     prisma.user.count(),
@@ -837,6 +855,7 @@ async function main() {
     prisma.teachingLog.count(),
     prisma.approvalRecord.count(),
     prisma.operationLog.count(),
+    prisma.semester.count(),
   ]);
 
   // 检查所有学生学号均为12位数字，并且前4位年级、接着2位学院代码与学生资料一致。
@@ -872,6 +891,7 @@ async function main() {
     teachingLogs: counts[14],
     approvalRecords: counts[15],
     operationLogs: counts[16],
+    semesters: counts[17],
   });
 
   const totalRecords = counts.reduce((sum, count) => sum + count, 0);
@@ -882,6 +902,7 @@ async function main() {
   }
 
   console.log('Seed执行完成。');
+  console.log(`当前测试学期：${semester.name}（${semester.code}，ID=${semester.id}）`);
   console.log('测试账号：admin、academic_admin、department_admin、research_director、teacher、student、textbook_admin、leader');
   console.log(`默认测试密码：${defaultPassword}`);
 }

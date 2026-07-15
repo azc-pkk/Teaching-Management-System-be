@@ -40,6 +40,12 @@ enum WorkflowStatus {
   COMPLETED
 }
 
+enum SemesterStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+}
+
 enum TextbookOrderStatus {
   PENDING
   APPROVED
@@ -186,6 +192,21 @@ model Student {
   @@map("student")
 }
 
+model Semester {
+  id        Int            @id @default(autoincrement())
+  code      String         @unique @db.VarChar(30)
+  name      String         @db.VarChar(100)
+  startDate DateTime       @map("start_date") @db.Date
+  endDate   DateTime       @map("end_date") @db.Date
+  status    SemesterStatus @default(PLANNED)
+
+  exams             Exam[]
+  textbookOrders    TextbookOrder[]
+  graduationReviews GraduationReview[]
+
+  @@map("semester")
+}
+
 model Course {
   id           Int     @id @default(autoincrement())
   code         String  @unique @map("course_code") @db.VarChar(30)
@@ -233,6 +254,7 @@ model Exam {
   endTime       DateTime @map("end_time")
   invigilatorId Int?     @map("invigilator_id")
 
+  semester    Semester   @relation(fields: [semesterId], references: [id])
   course      Course     @relation(fields: [courseId], references: [id])
   classGroup  ClassGroup @relation(fields: [classGroupId], references: [id])
   classroom   Classroom  @relation(fields: [classroomId], references: [id])
@@ -267,6 +289,7 @@ model TextbookOrder {
   quantity   Int
   status     TextbookOrderStatus @default(PENDING)
 
+  semester Semester @relation(fields: [semesterId], references: [id])
   course   Course   @relation(fields: [courseId], references: [id])
   textbook Textbook @relation(fields: [textbookId], references: [id])
 
@@ -320,7 +343,8 @@ model GraduationReview {
   hasFailedRequiredCourse Boolean          @default(false) @map("has_failed_required_course")
   result                  GraduationResult @default(PENDING)
 
-  student Student @relation(fields: [studentId], references: [id])
+  student  Student  @relation(fields: [studentId], references: [id])
+  semester Semester @relation(fields: [semesterId], references: [id])
 
   @@unique([studentId, semesterId])
   @@index([semesterId])
